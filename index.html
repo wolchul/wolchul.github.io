@@ -1192,15 +1192,19 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* ── TTS 음성 리더 (재생/일시정지/정지) ── */
+/* ── TTS 음성 리더 (재생/일시정지/정지) ──
+   모바일 대응: 사용자가 버튼을 누른 그 순간에 모든 토막을 한꺼번에 예약합니다.
+   안드로이드 크롬·삼성 인터넷은 버튼 클릭 이후에 speak()를 새로 호출하면
+   무시해 버리는 경우가 많아, 중간에 낭독이 끊기거나 아예 시작되지 않습니다. */
 let ttsPaused=false, ttsSession=0, ttsWatch=null;
-let ttsChunks=[], ttsIdx=0, ttsMovedAt=0, ttsDone=false;
+let ttsChunks=[], ttsIdx=0, ttsMovedAt=0, ttsStarted=false;
 
 function setTtsState(t){ const e=document.getElementById('ttsState'); if(e)e.textContent=t; }
 function setPlayIcon(p){ const b=document.getElementById('ttsPlayBtn'); if(b){ b.textContent=p?'❚❚':'▶'; b.setAttribute('aria-label',p?'일시정지':'재생'); } }
 
 function ttsPlayPause() {
-  if(!window.speechSynthesis){alert('이 브라우저는 음성 읽기를 지원하지 않습니다.');return}
+  if(!window.speechSynthesis){ setTtsState('이 브라우저는 음성 읽기를 지원하지 않습니다.'); return; }
+
   if(ttsPlay && ttsPaused){ speechSynthesis.resume(); ttsPaused=false; ttsMovedAt=Date.now();
     setTtsState('재생 중... ('+(ttsIdx+1)+'/'+ttsChunks.length+')'); setPlayIcon(true); return; }
   if(ttsPlay){ ttsPause(); return; }
@@ -1211,13 +1215,44 @@ function ttsPlayPause() {
   if(!text.trim()){ setTtsState('읽을 내용이 없습니다.'); return; }
 
   ttsSession++;
-  speechSynthesis.cancel();
-  ttsChunks = splitText(text, 60);   // 한 토막이 12초를 넘지 않도록 짧게 나눕니다
-  ttsPlay=true; ttsPaused=false;
-  // cancel() 직후 바로 speak하면 무시되는 브라우저가 있어 한 박자 쉽니다
-  const sess = ttsSession;
-  setTimeout(()=>speakAt(0, sess), 60);
+  // cancel() 직후 speak()는 안드로이드에서 무시되므로, 필요할 때만 부릅니다
+  if(speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+
+  ttsChunks = splitText(text, 60);
+  ttsPlay=true; ttsPaused=false; ttsIdx=0; ttsStarted=false; ttsMovedAt=Date.now();
+  setPlayIcon(true);
+  setTtsState('재생 중... (1/'+ttsChunks.length+')');
+
+  queueFrom(0, ttsSession);   // 버튼을 누른 흐름 안에서 바로 예약
   startWatch();
+}
+
+/* i번째부터 끝까지 한꺼번에 예약합니다 */
+function queueFrom(start, session){
+  if(session !== ttsSession) return;
+  const v = pickKoVoice();
+  for(let i = start; i < ttsChunks.length; i++){
+    const u = new SpeechSynthesisUtterance(ttsChunks[i]);
+    u.lang = 'ko-KR'; u.rate = 0.95; u.pitch = 1; u.volume = 1;
+    if(v) u.voice = v;      // 목소리를 못 찾으면 지정하지 않습니다 (삼성 인터넷 대응)
+    u.onstart = () => {
+      if(session !== ttsSession) return;
+      ttsStarted = true; ttsIdx = i; ttsMovedAt = Date.now();
+      setTtsState('재생 중... ('+(i+1)+'/'+ttsChunks.length+')');
+    };
+    u.onend = () => {
+      if(session !== ttsSession) return;
+      ttsIdx = i; ttsMovedAt = Date.now();
+      if(i === ttsChunks.length - 1) stopTTS();
+    };
+    u.onerror = e => {
+      const er = e && e.error;
+      if(er === 'interrupted' || er === 'canceled') return;
+      console.warn('TTS 오류:', er);
+    };
+    ttsUtt = u;
+    speechSynthesis.speak(u);
+  }
 }
 
 function ttsPause() {
@@ -1225,7 +1260,7 @@ function ttsPause() {
   speechSynthesis.pause(); ttsPaused=true; setTtsState('일시정지됨'); setPlayIcon(false);
 }
 
-/* 문장 → 90자 이하 토막. 한 문장이 길면 쉼표·공백에서 한 번 더 자릅니다 */
+/* 문장 → 60자 이하 토막. 문장이 길면 쉼표·공백에서 한 번 더 자릅니다 */
 function splitText(t, n) {
   const sents = String(t).replace(/\s+/g,' ').match(/[^.!?。\n]+[.!?。]?/g) || [t];
   const parts = [];
@@ -1243,55 +1278,40 @@ function splitText(t, n) {
     }
     if(s) parts.push(s);
   });
-  // 너무 짧은 토막은 앞과 합칩니다
   const out=[];
   parts.forEach(p=>{
     if(out.length && (out[out.length-1].length + p.length) <= n) out[out.length-1] += ' ' + p;
     else out.push(p);
   });
-  return out.length ? out : [t];
+  return out.length ? out : [String(t)];
 }
 
 function pickKoVoice(){
-  const vs = speechSynthesis.getVoices()||[];
-  return vs.find(v=>v.lang==='ko-KR') || vs.find(v=>(v.lang||'').startsWith('ko')) || null;
+  const vs = (speechSynthesis.getVoices && speechSynthesis.getVoices()) || [];
+  return vs.find(v => v.lang === 'ko-KR') || vs.find(v => (v.lang||'').replace('_','-').startsWith('ko')) || null;
 }
 
-function speakAt(i, session){
-  if(session !== ttsSession) return;
-  if(i >= ttsChunks.length){ stopTTS(); return; }
-  ttsIdx = i; ttsDone = false; ttsMovedAt = Date.now();
-
-  ttsUtt = new SpeechSynthesisUtterance(ttsChunks[i]);
-  ttsUtt.lang='ko-KR'; ttsUtt.rate=0.95; ttsUtt.pitch=1;
-  const v = pickKoVoice(); if(v) ttsUtt.voice = v;
-  ttsUtt.onstart = () => { ttsMovedAt = Date.now(); };
-  ttsUtt.onend   = () => advance(i, session);
-  ttsUtt.onerror = e => {
-    // 정지·교체로 인한 중단은 무시하고, 진짜 오류일 때만 다음으로 넘어갑니다
-    const er = e && e.error;
-    if(er === 'interrupted' || er === 'canceled') return;
-    advance(i, session);
-  };
-  speechSynthesis.speak(ttsUtt);
-  setTtsState('재생 중... ('+(i+1)+'/'+ttsChunks.length+')');
-  setPlayIcon(true);
-}
-
-function advance(i, session){
-  if(session !== ttsSession || ttsDone || ttsIdx !== i) return;
-  ttsDone = true;
-  speakAt(i+1, session);
-}
-
-/* 감시자 — 끝 신호 없이 소리만 멈추는 브라우저 버그에 대비해 이어서 재생합니다 */
+/* 감시자 — 소리가 조용히 끊기면 남은 부분을 다시 예약합니다 */
 function startWatch(){
   if(ttsWatch) return;
   ttsWatch = setInterval(() => {
     if(!ttsPlay || ttsPaused) return;
-    if(Date.now() - ttsMovedAt < 1200) return;      // 막 시작한 직후는 건너뜀
-    if(!speechSynthesis.speaking && !speechSynthesis.pending){
-      advance(ttsIdx, ttsSession);                   // 조용히 끊긴 경우 다음 토막으로
+    const idle = !speechSynthesis.speaking && !speechSynthesis.pending;
+    const gap  = Date.now() - ttsMovedAt;
+
+    // 2초가 지나도 한 번도 시작되지 않았다면 지원하지 않는 브라우저입니다
+    if(!ttsStarted && gap > 2500){
+      stopTTS();
+      setTtsState('이 브라우저에서는 음성 읽기가 지원되지 않습니다.');
+      return;
+    }
+    if(!ttsStarted) return;
+
+    if(idle && gap > 1500){
+      if(ttsIdx >= ttsChunks.length - 1){ stopTTS(); return; }
+      // 중간에 끊긴 경우 — 다음 토막부터 다시 예약
+      ttsMovedAt = Date.now();
+      queueFrom(ttsIdx + 1, ttsSession);
     }
   }, 500);
 }
@@ -1300,12 +1320,22 @@ function stopTTS() {
   ttsSession++;
   if(window.speechSynthesis) speechSynthesis.cancel();
   if(ttsWatch){ clearInterval(ttsWatch); ttsWatch=null; }
-  ttsPlay=false; ttsPaused=false; ttsChunks=[]; ttsIdx=0;
+  ttsPlay=false; ttsPaused=false; ttsChunks=[]; ttsIdx=0; ttsStarted=false;
   setTtsState('음성 읽어주기 준비 완료');
   setPlayIcon(false);
 }
 
-if(window.speechSynthesis) speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+/* 목소리 목록은 늦게 준비되는 경우가 많아 미리 한 번 불러 둡니다 */
+if(window.speechSynthesis){
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+}
+// 화면이 다시 보일 때 멈춰 있으면 이어서 재생
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && ttsPlay && !ttsPaused && window.speechSynthesis){
+    if(speechSynthesis.paused) speechSynthesis.resume();
+  }
+});
 window.addEventListener('pagehide', () => { if(window.speechSynthesis) speechSynthesis.cancel(); });
 
 /* ── 접근성 ── */
