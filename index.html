@@ -402,6 +402,10 @@ img{max-width:100%}
 .tts-txt b{font-size:.84rem;color:var(--ink)}
 .tts-txt span{font-size:.72rem;color:var(--ink-s)}
 .tts-ctl{margin-left:auto;display:flex;gap:8px}
+.tts-spd{border:1.5px solid var(--line);background:var(--white);color:var(--ink-m);
+  border-radius:19px;padding:7px 9px;font-size:.72rem;font-weight:700;
+  font-family:inherit;cursor:pointer;outline:none;margin-right:5px}
+.tts-spd:hover{border-color:var(--c1);color:var(--c1)}
 .tts-c{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);
   background:var(--white);color:var(--ink-m);font-size:.72rem;
   display:flex;align-items:center;justify-content:center;transition:all .15s}
@@ -733,6 +737,12 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
           <span id="ttsState">음성 읽어주기 준비 완료</span>
         </div>
         <div class="tts-ctl">
+          <select class="tts-spd" id="ttsSpd" onchange="setTtsRate(this.value)" aria-label="읽는 속도">
+            <option value="0.8">느리게</option>
+            <option value="1" selected>보통</option>
+            <option value="1.2">빠르게</option>
+            <option value="1.5">아주 빠르게</option>
+          </select>
           <button class="tts-c main" id="ttsPlayBtn" onclick="ttsPlayPause()" aria-label="재생">▶</button>
           <button class="tts-c" id="ttsPause" onclick="ttsPause()" aria-label="일시정지">❚❚</button>
           <button class="tts-c" id="ttsStop" onclick="stopTTS()" aria-label="정지">■</button>
@@ -1198,6 +1208,23 @@ document.addEventListener('keydown', e => {
    무시해 버리는 경우가 많아, 중간에 낭독이 끊기거나 아예 시작되지 않습니다. */
 let ttsPaused=false, ttsSession=0, ttsWatch=null;
 let ttsChunks=[], ttsIdx=0, ttsMovedAt=0, ttsStarted=false;
+let ttsQueuedTo=-1;                       // 어디까지 예약했는지 (중복 예약 방지)
+let ttsRate = parseFloat(localStorage.getItem('wc_tts_rate')) || 1;
+
+/* 읽는 속도 변경 — 읽는 중이면 그 자리에서 다시 시작합니다 */
+function setTtsRate(v){
+  ttsRate = parseFloat(v) || 1;
+  try{ localStorage.setItem('wc_tts_rate', String(ttsRate)); }catch{}
+  if(ttsPlay){
+    const from = ttsIdx;
+    const sess = ++ttsSession;
+    speechSynthesis.cancel();
+    ttsQueuedTo = -1;
+    ttsSession = sess;
+    ttsMovedAt = Date.now();
+    queueFrom(from, sess);
+  }
+}
 
 function setTtsState(t){ const e=document.getElementById('ttsState'); if(e)e.textContent=t; }
 function setPlayIcon(p){ const b=document.getElementById('ttsPlayBtn'); if(b){ b.textContent=p?'❚❚':'▶'; b.setAttribute('aria-label',p?'일시정지':'재생'); } }
@@ -1220,6 +1247,7 @@ function ttsPlayPause() {
 
   ttsChunks = splitText(text, 60);
   ttsPlay=true; ttsPaused=false; ttsIdx=0; ttsStarted=false; ttsMovedAt=Date.now();
+  ttsQueuedTo=-1;
   setPlayIcon(true);
   setTtsState('재생 중... (1/'+ttsChunks.length+')');
 
@@ -1230,10 +1258,13 @@ function ttsPlayPause() {
 /* i번째부터 끝까지 한꺼번에 예약합니다 */
 function queueFrom(start, session){
   if(session !== ttsSession) return;
+  if(start <= ttsQueuedTo) start = ttsQueuedTo + 1;   // 이미 예약한 토막은 건너뜁니다
+  if(start >= ttsChunks.length) return;
+  ttsQueuedTo = ttsChunks.length - 1;
   const v = pickKoVoice();
   for(let i = start; i < ttsChunks.length; i++){
     const u = new SpeechSynthesisUtterance(ttsChunks[i]);
-    u.lang = 'ko-KR'; u.rate = 0.95; u.pitch = 1; u.volume = 1;
+    u.lang = 'ko-KR'; u.rate = ttsRate; u.pitch = 1; u.volume = 1;
     if(v) u.voice = v;      // 목소리를 못 찾으면 지정하지 않습니다 (삼성 인터넷 대응)
     u.onstart = () => {
       if(session !== ttsSession) return;
@@ -1278,11 +1309,16 @@ function splitText(t, n) {
     }
     if(s) parts.push(s);
   });
+  // 토막 길이를 고르게 — 너무 짧은 조각은 앞뒤와 합칩니다
   const out=[];
   parts.forEach(p=>{
-    if(out.length && (out[out.length-1].length + p.length) <= n) out[out.length-1] += ' ' + p;
+    if(out.length && (out[out.length-1].length + p.length + 1) <= n) out[out.length-1] += ' ' + p;
     else out.push(p);
   });
+  // 마지막이 너무 짧으면(20자 미만) 앞 토막에 붙입니다
+  if(out.length > 1 && out[out.length-1].length < 20){
+    out[out.length-2] += ' ' + out.pop();
+  }
   return out.length ? out : [String(t)];
 }
 
@@ -1311,6 +1347,7 @@ function startWatch(){
       if(ttsIdx >= ttsChunks.length - 1){ stopTTS(); return; }
       // 중간에 끊긴 경우 — 다음 토막부터 다시 예약
       ttsMovedAt = Date.now();
+      ttsQueuedTo = ttsIdx;                 // 여기까지만 예약된 것으로 보고 다시 이어붙임
       queueFrom(ttsIdx + 1, ttsSession);
     }
   }, 500);
@@ -1320,7 +1357,7 @@ function stopTTS() {
   ttsSession++;
   if(window.speechSynthesis) speechSynthesis.cancel();
   if(ttsWatch){ clearInterval(ttsWatch); ttsWatch=null; }
-  ttsPlay=false; ttsPaused=false; ttsChunks=[]; ttsIdx=0; ttsStarted=false;
+  ttsPlay=false; ttsPaused=false; ttsChunks=[]; ttsIdx=0; ttsStarted=false; ttsQueuedTo=-1;
   setTtsState('음성 읽어주기 준비 완료');
   setPlayIcon(false);
 }
