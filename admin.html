@@ -541,8 +541,13 @@ input,select,textarea{font-family:inherit}
                   <button onclick="fmt('insertHorizontalRule')" type="button">구분선</button>
                   <span class="ct-sep"></span>
                   <button onclick="gridAsk()" type="button" title="격자(표) 넣기">▦ 격자 넣기</button>
-                  <button onclick="cellSplit()" type="button" title="선택한 칸을 좌우로 나누기">⊞ 칸 나누기</button>
-                  <button onclick="gridDel()" type="button" title="격자 삭제">▨ 격자 삭제</button>
+                  <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
+                  <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
+                  <button onclick="colAdd()" type="button" title="가로 칸 하나 늘리기">＋칸</button>
+                  <button onclick="cellClear()" type="button" title="선택한 칸 내용 비우기">칸 비우기</button>
+                  <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥ 칸 넓히기</button>
+                  <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤ 좁히기</button>
+                  <button onclick="gridDel()" type="button" title="격자 전체 삭제">▨ 격자 삭제</button>
                   <span class="ct-sep"></span>
                   <button onclick="imgSize('s')" type="button" title="선택한 사진 작게">🖼 작게</button>
                   <button onclick="imgSize('m')" type="button">보통</button>
@@ -821,6 +826,34 @@ input,select,textarea{font-family:inherit}
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
       <button class="btn bd bsm" onclick="deleteSp()">삭제</button>
       <button class="btn bo bsm" onclick="closeSpDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 격자 만들기 -->
+<div class="conf" id="gridDlg">
+  <div class="conf-box" style="max-width:340px">
+    <h3>▦ 격자 만들기</h3>
+    <p style="margin-bottom:14px">가로 칸 수와 세로 줄 수를 입력해 주세요.</p>
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px">
+      <div style="text-align:center">
+        <input type="number" id="gdCols" value="2" min="1" max="6"
+          style="width:74px;text-align:center;font-size:1.25rem;font-weight:800;padding:9px">
+        <div style="font-size:.72rem;color:var(--text-s);margin-top:5px">가로 칸</div>
+      </div>
+      <div style="font-size:1.4rem;font-weight:900;color:var(--text-s);padding-bottom:20px">×</div>
+      <div style="text-align:center">
+        <input type="number" id="gdRows" value="2" min="1" max="12"
+          style="width:74px;text-align:center;font-size:1.25rem;font-weight:800;padding:9px">
+        <div style="font-size:.72rem;color:var(--text-s);margin-top:5px">세로 줄</div>
+      </div>
+    </div>
+    <p style="font-size:.73rem;color:var(--text-s);text-align:center;margin-bottom:4px">
+      가로는 최대 6칸, 세로는 최대 12줄까지 만들 수 있습니다.
+    </p>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('gridDlg').classList.remove('open')">취소</button>
+      <button class="btn bs" onclick="gridMake()">만들기</button>
     </div>
   </div>
 </div>
@@ -1779,12 +1812,15 @@ function insertImageInto(url){
 let selCell = null, selImg = null;
 
 function gridAsk(){
-  const v = prompt('격자를 몇 칸으로 만들까요?\n\n예) 2      → 가로 2칸\n예) 2x2   → 가로 2칸 × 세로 2줄\n예) 3x2   → 가로 3칸 × 세로 2줄', '2x2');
-  if(!v) return;
-  const m = String(v).replace(/\s/g,'').match(/^(\d+)(?:[xX*](\d+))?$/);
-  if(!m){ toast('숫자로 입력해 주세요. 예: 2 또는 2x2','err'); return; }
-  const cols = Math.min(Math.max(parseInt(m[1])||2,1),4);
-  const rows = Math.min(Math.max(parseInt(m[2])||1,1),8);
+  gi('gdCols').value = 2; gi('gdRows').value = 2;
+  gi('gridDlg').classList.add('open');
+  setTimeout(()=>gi('gdCols').focus(), 50);
+}
+
+function gridMake(){
+  const cols = Math.min(Math.max(parseInt(gi('gdCols').value)||2, 1), 6);
+  const rows = Math.min(Math.max(parseInt(gi('gdRows').value)||1, 1), 12);
+  gi('gridDlg').classList.remove('open');
   gridInsert(cols, rows);
 }
 
@@ -1794,29 +1830,97 @@ function gridInsert(cols, rows){
   const html = `<div class="wg" data-cols="${cols}" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${cells}</div><p><br></p>`;
   gi('cedit').focus();
   document.execCommand('insertHTML', false, html);
-  bindGrid();
-  toast(cols+'칸 × '+rows+'줄 격자를 넣었습니다. 칸을 클릭한 뒤 사진을 삽입하세요.','ok');
+  bindGrid(); syncSrc();
+  toast('가로 '+cols+'칸 × 세로 '+rows+'줄 격자를 넣었습니다.','ok');
 }
 
 function gridDel(){
   const g = selCell ? selCell.closest('.wg') : null;
   if(!g){ toast('지울 격자의 칸을 먼저 클릭해 주세요.','err'); return; }
   if(!confirm('이 격자를 지울까요? 안의 내용도 함께 지워집니다.')) return;
-  g.remove(); selCell = null; syncSrc();
+  g.remove(); selCell = null; selImg = null; syncSrc();
+  toast('격자를 지웠습니다.','ok');
 }
 
-/* 선택한 칸을 좌우로 나눕니다 */
-function cellSplit(){
-  if(!selCell){ toast('나눌 칸을 먼저 클릭해 주세요.','err'); return; }
-  const g = selCell.closest('.wg'); if(!g) return;
-  const cols = Math.min((parseInt(g.dataset.cols)||2) + 1, 4);
-  g.dataset.cols = cols;
-  g.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
-  const nc = document.createElement('div');
-  nc.className = 'wc'; nc.innerHTML = '<p><br></p>';
-  selCell.after(nc);
+/* 선택한 칸이 몇 번째 줄에 있는지 계산 (넓힌 칸까지 감안) */
+function cellRowInfo(cell){
+  const g = cell.closest('.wg'); if(!g) return null;
+  const cols = parseInt(g.dataset.cols) || 1;
+  const list = [...g.querySelectorAll(':scope > .wc')];
+  let used = 0, row = 0, start = 0, target = null;
+  const rowsMap = [];
+  list.forEach((c, i) => {
+    const sp = parseInt(c.dataset.span) || 1;
+    if(used === 0) start = i;
+    used += sp;
+    if(!rowsMap[row]) rowsMap[row] = [];
+    rowsMap[row].push(c);
+    if(c === cell) target = row;
+    if(used >= cols){ used = 0; row++; }
+  });
+  return {grid:g, cols, list, rows:rowsMap, row:target};
+}
+
+function rowAdd(){
+  if(!selCell){ toast('기준이 될 칸을 먼저 클릭해 주세요.','err'); return; }
+  const info = cellRowInfo(selCell); if(!info || info.row == null) return;
+  const last = info.rows[info.row][info.rows[info.row].length - 1];
+  const frag = document.createDocumentFragment();
+  for(let i = 0; i < info.cols; i++){
+    const c = document.createElement('div');
+    c.className = 'wc'; c.innerHTML = '<p><br></p>';
+    frag.appendChild(c);
+  }
+  last.after(frag);
   bindGrid(); syncSrc();
-  toast('가로 '+cols+'칸으로 나눴습니다.','ok');
+  toast('아래에 한 줄을 추가했습니다.','ok');
+}
+
+function rowDel(){
+  if(!selCell){ toast('지울 줄의 칸을 먼저 클릭해 주세요.','err'); return; }
+  const info = cellRowInfo(selCell); if(!info || info.row == null) return;
+  if(info.rows.length <= 1){ toast('마지막 한 줄은 지울 수 없습니다. 격자 삭제를 사용해 주세요.','err'); return; }
+  if(!confirm((info.row+1)+'번째 줄을 지울까요? 그 줄의 내용도 함께 지워집니다.')) return;
+  info.rows[info.row].forEach(c => c.remove());
+  selCell = null; selImg = null;
+  bindGrid(); syncSrc();
+  toast('한 줄을 지웠습니다.','ok');
+}
+
+function colAdd(){
+  if(!selCell){ toast('격자의 칸을 먼저 클릭해 주세요.','err'); return; }
+  const info = cellRowInfo(selCell); if(!info) return;
+  if(info.cols >= 6){ toast('가로는 최대 6칸까지입니다.','err'); return; }
+  const cols = info.cols + 1;
+  info.grid.dataset.cols = cols;
+  info.grid.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+  // 각 줄 끝에 칸을 하나씩 더합니다
+  info.rows.forEach(r => {
+    const c = document.createElement('div');
+    c.className = 'wc'; c.innerHTML = '<p><br></p>';
+    r[r.length-1].after(c);
+  });
+  bindGrid(); syncSrc();
+  toast('가로 '+cols+'칸으로 늘렸습니다.','ok');
+}
+
+function cellClear(){
+  if(!selCell){ toast('비울 칸을 먼저 클릭해 주세요.','err'); return; }
+  selCell.innerHTML = '<p><br></p>';
+  selImg = null; syncSrc();
+  toast('칸을 비웠습니다.','ok');
+}
+
+/* 칸 넓히기 / 좁히기 (한글의 셀 병합처럼) */
+function cellMerge(delta){
+  if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
+  const info = cellRowInfo(selCell); if(!info) return;
+  let sp = (parseInt(selCell.dataset.span) || 1) + delta;
+  sp = Math.min(Math.max(sp, 1), info.cols);
+  if(sp === 1){ delete selCell.dataset.span; selCell.style.gridColumn = ''; }
+  else { selCell.dataset.span = sp; selCell.style.gridColumn = 'span ' + sp; }
+  syncSrc();
+  toast(sp === 1 ? '칸을 원래 너비로 되돌렸습니다.' : ('칸을 '+sp+'칸 너비로 넓혔습니다.'),'ok');
 }
 
 /* 칸 선택 · 사진 선택 · 끌어 옮기기 연결 */

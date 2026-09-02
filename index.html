@@ -450,11 +450,17 @@ img{max-width:100%}
 /* 본문 안 격자(표) */
 .wz-body .wg{display:grid;gap:16px;margin:18px 0;align-items:start}
 .wz-body .wg .wc{min-width:0}
+.wz-body .wg .wc[data-span="2"]{grid-column:span 2}
+.wz-body .wg .wc[data-span="3"]{grid-column:span 3}
+.wz-body .wg .wc[data-span="4"]{grid-column:span 4}
+.wz-body .wg .wc[data-span="5"]{grid-column:span 5}
+.wz-body .wg .wc[data-span="6"]{grid-column:span 6}
 .wz-body .wg .wc > *:first-child{margin-top:0}
 .wz-body .wg .wc > *:last-child{margin-bottom:0}
 .wz-body .wg img{margin:8px auto;border-radius:var(--r);cursor:zoom-in}
 @media(max-width:640px){
   .wz-body .wg{grid-template-columns:minmax(0,1fr) !important;gap:12px}
+  .wz-body .wg .wc[data-span]{grid-column:auto !important}
 }
 
 /* 기사별 읽어주기 */
