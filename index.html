@@ -409,6 +409,22 @@ img{max-width:100%}
 .wz-hd-t{font-size:calc(1.5rem*var(--fs));font-weight:900;color:var(--c1);margin:4px 0 5px}
 .wz-hd-d{font-size:calc(.83rem*var(--fs));color:var(--ink-s)}
 
+/* 기사 목록 — 2단 배치 지원 */
+#wzList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.wz-art.span-full{grid-column:1 / -1}
+.wz-art.span-half{grid-column:span 1}
+
+/* 사진을 옆에 두는 배치 */
+.wz-art.lay-left .wz-inner,
+.wz-art.lay-right .wz-inner{display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);gap:20px;align-items:start}
+.wz-art.lay-right .wz-inner{grid-template-columns:minmax(0,1fr) minmax(0,42%)}
+.wz-art.lay-right .wz-side-img{order:2}
+.wz-art.lay-left .wz-side-img img,
+.wz-art.lay-right .wz-side-img img,
+.wz-art.lay-top .wz-side-img img{width:100%;border-radius:var(--r);display:block;margin-bottom:8px;cursor:zoom-in}
+.wz-art.lay-top .wz-side-img{margin-bottom:16px}
+.wz-side-img img:last-child{margin-bottom:0}
+
 /* 기사 한 편 */
 .wz-art{background:var(--white);border:1px solid var(--line);border-radius:var(--r-l);
   padding:26px 28px;margin-bottom:20px;box-shadow:0 1px 10px rgba(0,0,0,.04);
@@ -449,6 +465,15 @@ img{max-width:100%}
 .wz-zoom-x{position:absolute;top:18px;right:20px;background:rgba(255,255,255,.2);
   border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:1.2rem;cursor:pointer}
 
+@media(max-width:1100px){
+  #wzList{grid-template-columns:minmax(0,1fr)}
+  .wz-art.span-half{grid-column:1 / -1}
+}
+@media(max-width:700px){
+  .wz-art.lay-left .wz-inner,
+  .wz-art.lay-right .wz-inner{grid-template-columns:minmax(0,1fr)}
+  .wz-art.lay-right .wz-side-img{order:0}
+}
 @media(max-width:900px){
   .wz{grid-template-columns:1fr;gap:18px}
   .wz-side{position:static;flex-direction:row;flex-wrap:wrap}
@@ -1072,22 +1097,37 @@ function render() {
     const imgs = [...tmp.querySelectorAll('img')].map(im => im.getAttribute('src')).filter(Boolean);
     tmp.querySelectorAll('img').forEach(im => im.remove());
 
-    const gallery = imgs.length
-      ? `<div class="wz-photos">` + imgs.map(src =>
-          `<img src="${src}" alt="" loading="lazy" onload="fitThumb(this)" onclick="openZoom('${src}')">`
-        ).join('') + `</div>`
-      : '';
+    const lay  = a.layout || 'default';
+    const span = (a.span === 'half') ? 'half' : 'full';
+    const side = (lay === 'left' || lay === 'right' || lay === 'top');
+
+    const photoHTML = src =>
+      `<img src="${src}" alt="" loading="lazy" onload="fitThumb(this)" onclick="openZoom('${src}')">`;
+
+    // 사진을 옆·위에 두는 배치는 사진을 따로 묶고, 기본 배치는 글 아래 갤러리로
+    const sideImgs = side && imgs.length
+      ? `<div class="wz-side-img">${imgs.map(photoHTML).join('')}</div>` : '';
+    const gallery = (!side && imgs.length)
+      ? `<div class="wz-photos">${imgs.map(photoHTML).join('')}</div>` : '';
+
+    const textBlock = `
+      <div class="wz-text">
+        <div class="wz-art-top">
+          <span class="wz-cat" style="background:${cbg};color:${cc}">${dispCat(a.cat)}</span>
+          <span class="wz-meta"><span>📅 ${fmt(a.date)}</span>${a.author?`<span>✍️ ${a.author}</span>`:''}</span>
+        </div>
+        <h3>${a.title||''}</h3>
+        ${a.summary ? `<div class="wz-sum">${a.summary}</div>` : ''}
+        <div class="wz-body" id="body-${a.id}">${tmp.innerHTML}</div>
+      </div>`;
+
+    const inner = side
+      ? `<div class="wz-inner">${lay==='right' ? textBlock + sideImgs : sideImgs + textBlock}</div>`
+      : textBlock + gallery;
 
     return `
-    <article class="wz-art" id="art-${a.id}">
-      <div class="wz-art-top">
-        <span class="wz-cat" style="background:${cbg};color:${cc}">${dispCat(a.cat)}</span>
-        <span class="wz-meta"><span>📅 ${fmt(a.date)}</span>${a.author?`<span>✍️ ${a.author}</span>`:''}</span>
-      </div>
-      <h3>${a.title||''}</h3>
-      ${a.summary ? `<div class="wz-sum">${a.summary}</div>` : ''}
-      <div class="wz-body" id="body-${a.id}">${tmp.innerHTML}</div>
-      ${gallery}
+    <article class="wz-art span-${span} lay-${lay}" id="art-${a.id}">
+      ${inner}
       <div class="wz-tts">
         <button class="wz-tts-b" id="ttsb-${a.id}" onclick="ttsToggle('${a.id}')">🔊 읽어주기</button>
         <button class="wz-tts-b" onclick="stopTTS()">■ 정지</button>
