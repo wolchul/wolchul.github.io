@@ -214,6 +214,9 @@ input,select,textarea{font-family:inherit}
   position:sticky;top:0;z-index:5}
 .ct button{background:var(--white);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:.73rem;font-weight:700;color:var(--text-m)}
 .ct button:hover{background:var(--sky-l);color:var(--sky);border-color:var(--sky)}
+.ins-hint{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:.72rem;
+  color:var(--text-s);background:#f7f9fb;border-bottom:1px solid var(--border);
+  position:sticky;top:36px;z-index:4}
 /* 본문 편집창 — 길어지면 이 안에서 스크롤됩니다 */
 .ce{max-height:620px;overflow-y:auto;overflow-x:hidden;resize:vertical}
 .ce::-webkit-scrollbar{width:11px}
@@ -570,6 +573,13 @@ input,select,textarea{font-family:inherit}
                   <button onclick="imgAlign('right')" type="button" title="오른쪽">◨</button>
                   <span class="ct-sep"></span>
                   <button onclick="toggleSrc()" type="button" id="srcBtn">HTML</button>
+                </div>
+                <div class="ins-hint">
+                  <span id="insHint">📍 삽입 위치: 본문 (격자 밖)</span>
+                  <span id="imgSel" style="margin-left:auto;color:var(--sky);font-weight:700"></span>
+                  <button type="button" onclick="clearCell()" style="border:1px solid var(--border);
+                    background:var(--white);border-radius:5px;padding:3px 9px;font-size:.71rem;font-weight:700">
+                    격자 선택 해제</button>
                 </div>
                 <div id="cedit" contenteditable="true" spellcheck="false"></div>
                 <textarea id="csrc"></textarea>
@@ -1616,8 +1626,8 @@ function newArt(){
   gi('imgPrev').innerHTML=''; gi('imgUrl').value='';
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
-  selCell=null; selImg=null;
-  setTimeout(()=>{ initDropZone(); bindGrid(); }, 100);
+  selCell=null; selImg=null; lastRange=null;
+  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); showInsertHint(); }, 100);
 }
 function editArt(id){
   const a=ARTS.find(x=>x.id==id||x.id===id||x._firebaseId===id); if(!a)return;
@@ -1636,8 +1646,8 @@ function editArt(id){
   gi('imgPrev').innerHTML=''; gi('imgUrl').value='';
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
-  selCell=null; selImg=null;
-  setTimeout(()=>{ initDropZone(); bindGrid(); }, 100);
+  selCell=null; selImg=null; lastRange=null;
+  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); showInsertHint(); }, 100);
 }
 
 /* ★ 드래그 앤 드롭 사진 업로드 */
@@ -1723,7 +1733,7 @@ function insertImg(){ insertImgUrl(); }
 
 async function saveArt(){
   const title=gi('etti').value.trim(), summary=gi('esum').value.trim();
-  const cont=srcMode?gi('csrc').value:gi('cedit').innerHTML.trim();
+  const cont=cleanHTML(srcMode?gi('csrc').value:gi('cedit').innerHTML).trim();
   if(!title){ toast('제목을 입력해주세요.','err'); return; }
   if(!summary){ toast('요약을 입력해주세요.','err'); return; }
   if(!cont||cont==='<br>'){ toast('본문 내용을 입력해주세요.','err'); return; }
@@ -1772,7 +1782,7 @@ function prevArt(){
   gi('pvcat').textContent=gi('ecat').value;
   gi('pvtitle').textContent=gi('etti').value;
   gi('pvmeta').textContent='📅 '+(gi('edat').value||'').replace(/-/g,'.')+' ✍️ '+gi('eaut').value;
-  gi('pvcontent').innerHTML=srcMode?gi('csrc').value:gi('cedit').innerHTML;
+  gi('pvcontent').innerHTML=cleanHTML(srcMode?gi('csrc').value:gi('cedit').innerHTML);
   gi('pov').style.display='block';
 }
 
@@ -1801,26 +1811,72 @@ async function doDelete(){
 
 
 
-/* 사진을 넣습니다 — 격자 칸을 골라둔 상태면 그 칸 안으로 */
-function insertImageInto(url){
-  const img = document.createElement('img');
-  img.src = url; img.alt = '기사 사진';
-  const inCell = selCell && document.body.contains(selCell);
-  // 격자 칸 안에서는 칸 폭에 꽉 차게, 일반 본문에서는 60%
-  img.dataset.sz = inCell ? 'f' : 'm';
-  img.dataset.al = 'center';
-  img.style.cssText = 'width:' + (inCell ? '100%' : '60%')
-    + ';height:auto;display:block;margin:10px auto;border-radius:8px';
-  if(inCell){
-    if(!selCell.textContent.trim() && !selCell.querySelector('img')) selCell.innerHTML = '';
-    selCell.appendChild(img);
-    const p = document.createElement('p'); p.innerHTML = '<br>';
-    selCell.appendChild(p);          // 사진 아래에 글 쓸 자리를 만들어 둡니다
-  }else{
-    gi('cedit').focus();
-    document.execCommand('insertHTML', false, img.outerHTML + '<p><br></p>');
+/* 편집창에서 마지막으로 커서가 있던 자리를 기억합니다 */
+let lastRange = null;
+function saveCaret(){
+  const ed = gi('cedit'); if(!ed) return;
+  const sel = window.getSelection();
+  if(sel && sel.rangeCount){
+    const r = sel.getRangeAt(0);
+    if(ed.contains(r.startContainer)) lastRange = r.cloneRange();
   }
-  bindGrid(); syncSrc();
+}
+function restoreCaret(){
+  const ed = gi('cedit'); if(!ed) return null;
+  ed.focus();
+  if(lastRange && ed.contains(lastRange.startContainer)){
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(lastRange);
+    return lastRange;
+  }
+  return null;
+}
+/* 커서가 지금 어느 격자 칸 안에 있는지 */
+function caretCell(){
+  const r = lastRange; if(!r) return null;
+  let n = r.startContainer;
+  if(n && n.nodeType === 3) n = n.parentElement;
+  return n && n.closest ? n.closest('.wc') : null;
+}
+/* 지금 사진이 들어갈 자리를 화면에 표시 */
+function showInsertHint(){
+  const el = gi('insHint'); if(!el) return;
+  const c = caretCell();
+  el.textContent = c ? '📍 삽입 위치: 격자 칸 안' : '📍 삽입 위치: 본문 (격자 밖)';
+  el.style.color = c ? 'var(--sky)' : 'var(--text-s)';
+}
+
+/* 사진을 커서가 있던 자리에 넣습니다 */
+function insertImageInto(url){
+  const ed = gi('cedit');
+  const r = restoreCaret();
+  const cell = caretCell();
+  const inCell = !!cell;
+
+  const w = inCell ? '100%' : '60%';
+  const html = '<img src="' + url.replace(/"/g,'&quot;') + '" alt="기사 사진" data-new="1"'
+    + ' data-sz="' + (inCell ? 'f' : 'm') + '" data-al="center"'
+    + ' style="width:' + w + ';height:auto;display:block;margin:10px auto;border-radius:8px">'
+    + '<p><br></p>';
+
+  if(r){
+    document.execCommand('insertHTML', false, html);
+  }else if(inCell){
+    cell.insertAdjacentHTML('beforeend', html);
+  }else{
+    ed.focus();
+    ed.insertAdjacentHTML('beforeend', html);
+  }
+
+  // 방금 넣은 사진을 선택 상태로 만들어 바로 크기를 조절할 수 있게 합니다
+  const fresh = ed.querySelector('img[data-new="1"]');
+  if(fresh){
+    fresh.removeAttribute('data-new');
+    ed.querySelectorAll('img').forEach(x => x.classList.remove('sel'));
+    fresh.classList.add('sel');
+    selImg = fresh;
+  }
+  bindGrid(); saveCaret(); showInsertHint(); syncSrc();
 }
 
 /* ═══════ 본문 격자(표) 편집 ═══════
@@ -1941,40 +1997,74 @@ function cellMerge(delta){
 }
 
 /* 칸 선택 · 사진 선택 · 끌어 옮기기 연결 */
+/* 격자 선택을 풀어 본문 자리에 넣도록 되돌립니다 */
+function clearCell(){
+  const ed = gi('cedit'); if(!ed) return;
+  ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
+  ed.querySelectorAll('img').forEach(x=>x.classList.remove('sel'));
+  selCell = null; selImg = null; lastRange = null;
+  const st = gi('imgSel'); if(st) st.textContent = '';
+  showInsertHint();
+  toast('격자 선택을 해제했습니다. 이제 본문에 사진이 들어갑니다.','ok');
+}
+
+/* 이미 연결된 요소 표시 — HTML에 저장되지 않도록 메모리에만 보관합니다.
+   (예전에는 data-b 표시가 본문에 함께 저장돼, 다시 수정할 때 연결이 건너뛰어졌습니다) */
+const BOUND = new WeakSet();
+
+/* 편집창에서 커서가 움직일 때마다 위치를 기억합니다 */
+function bindCaret(){
+  const ed = gi('cedit'); if(!ed || BOUND.has(ed)) return;
+  BOUND.add(ed);
+  ['keyup','mouseup','focus'].forEach(ev =>
+    ed.addEventListener(ev, () => { saveCaret(); showInsertHint(); }));
+}
+
 function bindGrid(){
   const ed = gi('cedit'); if(!ed) return;
 
   ed.querySelectorAll('.wg .wc').forEach(c => {
     c.setAttribute('contenteditable','true');
-    if(c.dataset.b) return; c.dataset.b='1';
-    c.addEventListener('click', e => {
+    c.removeAttribute('data-b');          // 예전 파일에 남은 표시 제거
+    if(BOUND.has(c)) return; BOUND.add(c);
+    c.addEventListener('click', () => {
       ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
       c.classList.add('sel'); selCell = c;
       if(!c.querySelector('p,div,img')) c.innerHTML = '<p><br></p>';
+      setTimeout(()=>{ saveCaret(); showInsertHint(); }, 0);
     });
     c.addEventListener('dragover', e => { e.preventDefault(); c.classList.add('drop'); });
     c.addEventListener('dragleave', () => c.classList.remove('drop'));
     c.addEventListener('drop', e => {
       e.preventDefault(); c.classList.remove('drop');
       if(!selImg) return;
-      c.appendChild(selImg);      // 사진을 이 칸으로 옮깁니다
-      syncSrc();
+      if(!c.textContent.trim() && !c.querySelector('img')) c.innerHTML = '';
+      c.appendChild(selImg);
+      if(!c.querySelector('p')) c.insertAdjacentHTML('beforeend','<p><br></p>');
+      selImg.dataset.sz = 'f';
+      selImg.style.width = '100%';
+      bindGrid(); syncSrc();
     });
   });
 
   ed.querySelectorAll('img').forEach(im => {
     im.setAttribute('draggable','true');
+    im.removeAttribute('data-b');
     if(!im.dataset.sz) im.dataset.sz = 'm';
     if(!im.dataset.al) im.dataset.al = 'center';
-    if(im.dataset.b) return; im.dataset.b='1';
-    im.addEventListener('click', e => {
-      e.stopPropagation();
+    if(BOUND.has(im)) return; BOUND.add(im);
+    const pick = e => {
+      e.stopPropagation(); e.preventDefault();
       ed.querySelectorAll('img').forEach(x=>x.classList.remove('sel'));
       im.classList.add('sel'); selImg = im;
       const cell = im.closest('.wc');
-      if(cell){ ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
-                cell.classList.add('sel'); selCell = cell; }
-    });
+      ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
+      if(cell){ cell.classList.add('sel'); selCell = cell; }
+      const st = gi('imgSel');
+      if(st) st.textContent = '🖼 사진 선택됨 — 크기·정렬 버튼을 누르세요';
+    };
+    im.addEventListener('mousedown', pick);   // 클릭이 편집기에 먹히지 않도록
+    im.addEventListener('click', pick);
     im.addEventListener('dragstart', () => { selImg = im; });
   });
 }
@@ -1997,9 +2087,12 @@ function imgAlign(al){
 }
 
 /* 편집 내용을 HTML 칸과 동기화 */
+function cleanHTML(h){
+  return String(h||'').replace(/\s+data-b="1"/g,'').replace(/\s+data-new="1"/g,'');
+}
 function syncSrc(){
   const src = gi('csrc');
-  if(src && src.style.display !== 'none') src.value = gi('cedit').innerHTML;
+  if(src && src.style.display !== 'none') src.value = cleanHTML(gi('cedit').innerHTML);
 }
 
 /* ═══════ 기사 배치 미리보기 ═══════ */
