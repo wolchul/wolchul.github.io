@@ -210,11 +210,20 @@ input,select,textarea{font-family:inherit}
 
 /* 본문 에디터 */
 .ce{border:1.5px solid var(--border);border-radius:8px;overflow:hidden}
-.ct{background:var(--bg);border-bottom:1px solid var(--border);padding:7px 10px;display:flex;gap:5px;flex-wrap:wrap}
+.ct{background:var(--bg);border-bottom:1px solid var(--border);padding:7px 10px;display:flex;gap:5px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:5}
 .ct button{background:var(--white);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:.73rem;font-weight:700;color:var(--text-m)}
 .ct button:hover{background:var(--sky-l);color:var(--sky);border-color:var(--sky)}
-#cedit{min-height:260px;padding:14px;font-size:.85rem;line-height:1.8;outline:none;color:var(--text)}
-#cedit img{max-width:100%;border-radius:8px;margin:8px 0}
+/* 본문 편집창 — 길어지면 이 안에서 스크롤됩니다 */
+.ce{max-height:620px;overflow-y:auto;overflow-x:hidden;resize:vertical}
+.ce::-webkit-scrollbar{width:11px}
+.ce::-webkit-scrollbar-track{background:var(--bg)}
+.ce::-webkit-scrollbar-thumb{background:#c3ccd4;border-radius:8px;border:2px solid var(--bg)}
+.ce::-webkit-scrollbar-thumb:hover{background:#9aa7b2}
+#cedit{min-height:320px;padding:14px;font-size:.85rem;line-height:1.8;outline:none;color:var(--text)}
+#cedit img{max-width:100%;height:auto;border-radius:8px;margin:8px 0}
+/* 편집 중에는 사진 높이를 제한해 칸이 지나치게 늘어나지 않게 합니다 */
+#cedit .wg img{max-height:230px;object-fit:contain}
 #csrc{display:none;width:100%;min-height:260px;padding:14px;font-size:.77rem;font-family:monospace;border:none;outline:none;resize:vertical;color:var(--text);background:var(--bg)}
 .fa{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 
@@ -263,10 +272,13 @@ input,select,textarea{font-family:inherit}
   padding:4px;text-align:center}
 /* 편집기 격자 */
 .ct-sep{display:inline-block;width:1px;height:18px;background:var(--border);margin:0 5px;vertical-align:middle}
-#cedit .wg{display:grid;gap:12px;margin:16px 0;padding:8px;
+#cedit .wg{display:grid;gap:12px;margin:16px 0;padding:8px;align-items:start;
   border:1.5px dashed #b9c6d1;border-radius:8px;background:#fbfcfd}
 #cedit .wg .wc{border:1px dashed #d3dbe2;border-radius:6px;padding:10px;min-height:70px;
-  background:#fff;transition:border-color .15s}
+  background:#fff;transition:border-color .15s;overflow-wrap:anywhere;min-width:0}
+#cedit .wg .wc > *:first-child{margin-top:0}
+#cedit .wg .wc > *:last-child{margin-bottom:0}
+#cedit .wg .wc p:empty::before{content:'내용을 입력하세요';color:#c2cad2;font-size:.78rem}
 #cedit .wg .wc:hover{border-color:var(--sky)}
 #cedit .wg .wc.sel{border:2px solid var(--sky);background:var(--sky-l)}
 #cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
@@ -1793,12 +1805,17 @@ async function doDelete(){
 function insertImageInto(url){
   const img = document.createElement('img');
   img.src = url; img.alt = '기사 사진';
-  img.dataset.sz = 'm'; img.dataset.al = 'center';
-  img.style.cssText = 'width:60%;height:auto;display:block;margin:10px auto;border-radius:8px';
-  if(selCell && document.body.contains(selCell)){
-    // 안내 문구만 있는 빈 칸이면 지우고 넣습니다
-    if(/여기에 글을 쓰거나/.test(selCell.textContent)) selCell.innerHTML = '';
+  const inCell = selCell && document.body.contains(selCell);
+  // 격자 칸 안에서는 칸 폭에 꽉 차게, 일반 본문에서는 60%
+  img.dataset.sz = inCell ? 'f' : 'm';
+  img.dataset.al = 'center';
+  img.style.cssText = 'width:' + (inCell ? '100%' : '60%')
+    + ';height:auto;display:block;margin:10px auto;border-radius:8px';
+  if(inCell){
+    if(!selCell.textContent.trim() && !selCell.querySelector('img')) selCell.innerHTML = '';
     selCell.appendChild(img);
+    const p = document.createElement('p'); p.innerHTML = '<br>';
+    selCell.appendChild(p);          // 사진 아래에 글 쓸 자리를 만들어 둡니다
   }else{
     gi('cedit').focus();
     document.execCommand('insertHTML', false, img.outerHTML + '<p><br></p>');
@@ -1826,7 +1843,7 @@ function gridMake(){
 
 function gridInsert(cols, rows){
   const cells = Array.from({length: cols*rows}, () =>
-    '<div class="wc"><p>여기에 글을 쓰거나 사진을 넣으세요.</p></div>').join('');
+    '<div class="wc"><p><br></p></div>').join('');
   const html = `<div class="wg" data-cols="${cols}" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${cells}</div><p><br></p>`;
   gi('cedit').focus();
   document.execCommand('insertHTML', false, html);
@@ -1933,6 +1950,7 @@ function bindGrid(){
     c.addEventListener('click', e => {
       ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
       c.classList.add('sel'); selCell = c;
+      if(!c.querySelector('p,div,img')) c.innerHTML = '<p><br></p>';
     });
     c.addEventListener('dragover', e => { e.preventDefault(); c.classList.add('drop'); });
     c.addEventListener('dragleave', () => c.classList.remove('drop'));
