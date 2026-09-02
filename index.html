@@ -447,6 +447,16 @@ img{max-width:100%}
 .wz-photos img:hover{transform:scale(1.02)}
 .wz-photos img.fit-contain{object-fit:contain;background:var(--c-light)}
 
+/* 본문 안 격자(표) */
+.wz-body .wg{display:grid;gap:16px;margin:18px 0;align-items:start}
+.wz-body .wg .wc{min-width:0}
+.wz-body .wg .wc > *:first-child{margin-top:0}
+.wz-body .wg .wc > *:last-child{margin-bottom:0}
+.wz-body .wg img{margin:8px auto;border-radius:var(--r);cursor:zoom-in}
+@media(max-width:640px){
+  .wz-body .wg{grid-template-columns:minmax(0,1fr) !important;gap:12px}
+}
+
 /* 기사별 읽어주기 */
 .wz-tts{display:flex;align-items:center;gap:7px;margin-top:16px;padding-top:14px;
   border-top:1px dashed var(--line);flex-wrap:wrap}
@@ -1094,8 +1104,14 @@ function render() {
     // 본문에서 사진을 분리 — 글은 위, 사진은 아래 갤러리로
     const tmp = document.createElement('div');
     tmp.innerHTML = a.content || `<p>${a.summary||''}</p>`;
-    const imgs = [...tmp.querySelectorAll('img')].map(im => im.getAttribute('src')).filter(Boolean);
-    tmp.querySelectorAll('img').forEach(im => im.remove());
+    // 격자(표) 안의 사진은 배치를 살려 그대로 두고, 격자 밖 사진만 따로 모읍니다
+    tmp.querySelectorAll('.wg img').forEach(im => {
+      im.setAttribute('loading','lazy');
+      im.setAttribute('onclick', `openZoom('${im.getAttribute('src')}')`);
+    });
+    const loose = [...tmp.querySelectorAll('img')].filter(im => !im.closest('.wg'));
+    const imgs = loose.map(im => im.getAttribute('src')).filter(Boolean);
+    loose.forEach(im => { const f = im.closest('figure'); (f||im).remove(); });
 
     const lay  = a.layout || 'default';
     const span = (a.span === 'half') ? 'half' : 'full';

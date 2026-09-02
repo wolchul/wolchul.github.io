@@ -261,6 +261,24 @@ input,select,textarea{font-family:inherit}
 .dz-pat-vw{height:46px;position:relative}
 .dz-pat-nm{font-size:.66rem;font-weight:700;color:var(--text);background:var(--white);
   padding:4px;text-align:center}
+/* 편집기 격자 */
+.ct-sep{display:inline-block;width:1px;height:18px;background:var(--border);margin:0 5px;vertical-align:middle}
+#cedit .wg{display:grid;gap:12px;margin:16px 0;padding:8px;
+  border:1.5px dashed #b9c6d1;border-radius:8px;background:#fbfcfd}
+#cedit .wg .wc{border:1px dashed #d3dbe2;border-radius:6px;padding:10px;min-height:70px;
+  background:#fff;transition:border-color .15s}
+#cedit .wg .wc:hover{border-color:var(--sky)}
+#cedit .wg .wc.sel{border:2px solid var(--sky);background:var(--sky-l)}
+#cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
+#cedit img{cursor:pointer;max-width:100%;height:auto;border-radius:6px}
+#cedit img.sel{outline:3px solid var(--sky);outline-offset:2px}
+#cedit img[data-sz="s"]{width:38%} #cedit img[data-sz="m"]{width:60%}
+#cedit img[data-sz="l"]{width:85%} #cedit img[data-sz="f"]{width:100%}
+#cedit img[data-al="left"]{display:block;margin-right:auto;margin-left:0}
+#cedit img[data-al="center"]{display:block;margin-left:auto;margin-right:auto}
+#cedit img[data-al="right"]{display:block;margin-left:auto;margin-right:0}
+.gd-hint{font-size:.71rem;color:var(--text-s);padding:6px 2px}
+
 /* 기사 배치 미리보기 */
 .lay-prev{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;
   background:var(--bg);border:1.5px dashed var(--border);border-radius:var(--r);padding:12px}
@@ -521,6 +539,19 @@ input,select,textarea{font-family:inherit}
                   <button onclick="iTag('p')" type="button">단락</button>
                   <button onclick="fmt('insertUnorderedList')" type="button">• 목록</button>
                   <button onclick="fmt('insertHorizontalRule')" type="button">구분선</button>
+                  <span class="ct-sep"></span>
+                  <button onclick="gridAsk()" type="button" title="격자(표) 넣기">▦ 격자 넣기</button>
+                  <button onclick="cellSplit()" type="button" title="선택한 칸을 좌우로 나누기">⊞ 칸 나누기</button>
+                  <button onclick="gridDel()" type="button" title="격자 삭제">▨ 격자 삭제</button>
+                  <span class="ct-sep"></span>
+                  <button onclick="imgSize('s')" type="button" title="선택한 사진 작게">🖼 작게</button>
+                  <button onclick="imgSize('m')" type="button">보통</button>
+                  <button onclick="imgSize('l')" type="button">크게</button>
+                  <button onclick="imgSize('f')" type="button">꽉</button>
+                  <button onclick="imgAlign('left')" type="button" title="왼쪽 정렬">◧</button>
+                  <button onclick="imgAlign('center')" type="button" title="가운데">▣</button>
+                  <button onclick="imgAlign('right')" type="button" title="오른쪽">◨</button>
+                  <span class="ct-sep"></span>
                   <button onclick="toggleSrc()" type="button" id="srcBtn">HTML</button>
                 </div>
                 <div id="cedit" contenteditable="true" spellcheck="false"></div>
@@ -1540,7 +1571,8 @@ function newArt(){
   gi('imgPrev').innerHTML=''; gi('imgUrl').value='';
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
-  setTimeout(()=>initDropZone(), 100);
+  selCell=null; selImg=null;
+  setTimeout(()=>{ initDropZone(); bindGrid(); }, 100);
 }
 function editArt(id){
   const a=ARTS.find(x=>x.id==id||x.id===id||x._firebaseId===id); if(!a)return;
@@ -1559,7 +1591,8 @@ function editArt(id){
   gi('imgPrev').innerHTML=''; gi('imgUrl').value='';
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
-  setTimeout(()=>initDropZone(), 100);
+  selCell=null; selImg=null;
+  setTimeout(()=>{ initDropZone(); bindGrid(); }, 100);
 }
 
 /* ★ 드래그 앤 드롭 사진 업로드 */
@@ -1634,12 +1667,7 @@ function insertImgUrl(){
   if(!url){ toast('URL을 입력해주세요.','err'); return; }
   const gd1 = url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
   if(gd1) url = 'https://drive.google.com/uc?export=view&id=' + gd1[1];
-  gi('cedit').focus();
-  document.execCommand('insertHTML', false,
-    '<figure style="margin:16px 0;text-align:center">' +
-    '<img src="' + url + '" alt="기사 사진" style="max-width:100%;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.12)">' +
-    '<br></figure>'
-  );
+  insertImageInto(url);
   addPreview(url, '');
   gi('imgUrl').value = '';
   toast('사진이 삽입되었습니다!', 'ok');
@@ -1726,6 +1754,131 @@ async function doDelete(){
 }
 
 
+
+
+/* 사진을 넣습니다 — 격자 칸을 골라둔 상태면 그 칸 안으로 */
+function insertImageInto(url){
+  const img = document.createElement('img');
+  img.src = url; img.alt = '기사 사진';
+  img.dataset.sz = 'm'; img.dataset.al = 'center';
+  img.style.cssText = 'width:60%;height:auto;display:block;margin:10px auto;border-radius:8px';
+  if(selCell && document.body.contains(selCell)){
+    // 안내 문구만 있는 빈 칸이면 지우고 넣습니다
+    if(/여기에 글을 쓰거나/.test(selCell.textContent)) selCell.innerHTML = '';
+    selCell.appendChild(img);
+  }else{
+    gi('cedit').focus();
+    document.execCommand('insertHTML', false, img.outerHTML + '<p><br></p>');
+  }
+  bindGrid(); syncSrc();
+}
+
+/* ═══════ 본문 격자(표) 편집 ═══════
+   한글의 '표'처럼 칸을 만들고, 칸 안에 사진과 글을 넣습니다.
+   사진은 끌어서 다른 칸으로 옮길 수 있습니다. */
+let selCell = null, selImg = null;
+
+function gridAsk(){
+  const v = prompt('격자를 몇 칸으로 만들까요?\n\n예) 2      → 가로 2칸\n예) 2x2   → 가로 2칸 × 세로 2줄\n예) 3x2   → 가로 3칸 × 세로 2줄', '2x2');
+  if(!v) return;
+  const m = String(v).replace(/\s/g,'').match(/^(\d+)(?:[xX*](\d+))?$/);
+  if(!m){ toast('숫자로 입력해 주세요. 예: 2 또는 2x2','err'); return; }
+  const cols = Math.min(Math.max(parseInt(m[1])||2,1),4);
+  const rows = Math.min(Math.max(parseInt(m[2])||1,1),8);
+  gridInsert(cols, rows);
+}
+
+function gridInsert(cols, rows){
+  const cells = Array.from({length: cols*rows}, () =>
+    '<div class="wc"><p>여기에 글을 쓰거나 사진을 넣으세요.</p></div>').join('');
+  const html = `<div class="wg" data-cols="${cols}" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${cells}</div><p><br></p>`;
+  gi('cedit').focus();
+  document.execCommand('insertHTML', false, html);
+  bindGrid();
+  toast(cols+'칸 × '+rows+'줄 격자를 넣었습니다. 칸을 클릭한 뒤 사진을 삽입하세요.','ok');
+}
+
+function gridDel(){
+  const g = selCell ? selCell.closest('.wg') : null;
+  if(!g){ toast('지울 격자의 칸을 먼저 클릭해 주세요.','err'); return; }
+  if(!confirm('이 격자를 지울까요? 안의 내용도 함께 지워집니다.')) return;
+  g.remove(); selCell = null; syncSrc();
+}
+
+/* 선택한 칸을 좌우로 나눕니다 */
+function cellSplit(){
+  if(!selCell){ toast('나눌 칸을 먼저 클릭해 주세요.','err'); return; }
+  const g = selCell.closest('.wg'); if(!g) return;
+  const cols = Math.min((parseInt(g.dataset.cols)||2) + 1, 4);
+  g.dataset.cols = cols;
+  g.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+  const nc = document.createElement('div');
+  nc.className = 'wc'; nc.innerHTML = '<p><br></p>';
+  selCell.after(nc);
+  bindGrid(); syncSrc();
+  toast('가로 '+cols+'칸으로 나눴습니다.','ok');
+}
+
+/* 칸 선택 · 사진 선택 · 끌어 옮기기 연결 */
+function bindGrid(){
+  const ed = gi('cedit'); if(!ed) return;
+
+  ed.querySelectorAll('.wg .wc').forEach(c => {
+    c.setAttribute('contenteditable','true');
+    if(c.dataset.b) return; c.dataset.b='1';
+    c.addEventListener('click', e => {
+      ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
+      c.classList.add('sel'); selCell = c;
+    });
+    c.addEventListener('dragover', e => { e.preventDefault(); c.classList.add('drop'); });
+    c.addEventListener('dragleave', () => c.classList.remove('drop'));
+    c.addEventListener('drop', e => {
+      e.preventDefault(); c.classList.remove('drop');
+      if(!selImg) return;
+      c.appendChild(selImg);      // 사진을 이 칸으로 옮깁니다
+      syncSrc();
+    });
+  });
+
+  ed.querySelectorAll('img').forEach(im => {
+    im.setAttribute('draggable','true');
+    if(!im.dataset.sz) im.dataset.sz = 'm';
+    if(!im.dataset.al) im.dataset.al = 'center';
+    if(im.dataset.b) return; im.dataset.b='1';
+    im.addEventListener('click', e => {
+      e.stopPropagation();
+      ed.querySelectorAll('img').forEach(x=>x.classList.remove('sel'));
+      im.classList.add('sel'); selImg = im;
+      const cell = im.closest('.wc');
+      if(cell){ ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
+                cell.classList.add('sel'); selCell = cell; }
+    });
+    im.addEventListener('dragstart', () => { selImg = im; });
+  });
+}
+
+/* 사진 크기 / 정렬 */
+function imgSize(sz){
+  if(!selImg){ toast('먼저 사진을 클릭해서 선택해 주세요.','err'); return; }
+  selImg.dataset.sz = sz;
+  selImg.style.width = ({s:'38%',m:'60%',l:'85%',f:'100%'})[sz] || '60%';
+  selImg.style.height = 'auto';
+  syncSrc();
+}
+function imgAlign(al){
+  if(!selImg){ toast('먼저 사진을 클릭해서 선택해 주세요.','err'); return; }
+  selImg.dataset.al = al;
+  selImg.style.display = 'block';
+  selImg.style.marginLeft  = (al==='left')  ? '0' : 'auto';
+  selImg.style.marginRight = (al==='right') ? '0' : 'auto';
+  syncSrc();
+}
+
+/* 편집 내용을 HTML 칸과 동기화 */
+function syncSrc(){
+  const src = gi('csrc');
+  if(src && src.style.display !== 'none') src.value = gi('cedit').innerHTML;
+}
 
 /* ═══════ 기사 배치 미리보기 ═══════ */
 function layPrev(){
