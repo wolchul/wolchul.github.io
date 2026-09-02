@@ -219,34 +219,6 @@ img{max-width:100%}
 .ftag:hover{border-color:var(--c1);color:var(--c1)}
 .ftag.on{background:var(--c1);border-color:var(--c1);color:#fff}
 
-/* 월별 필터 (드롭다운) */
-.month-row{width:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  border-top:1px dashed var(--line);padding-top:11px;margin-top:3px}
-.month-row.hide{display:none}
-.msel{position:relative}
-.msel-btn{display:inline-flex;align-items:center;gap:8px;min-width:170px;
-  border:1.5px solid var(--line);background:var(--white);color:var(--ink);
-  border-radius:8px;padding:7px 12px;font-size:.8rem;font-weight:700;transition:all .18s}
-.msel-btn:hover{border-color:var(--acc)}
-.msel.open .msel-btn{border-color:var(--acc);background:var(--acc-l)}
-.msel-cur{flex:1;text-align:left;white-space:nowrap}
-.msel-arw{width:16px;height:16px;fill:var(--ink-s);flex-shrink:0;transition:transform .22s}
-.msel.open .msel-arw{transform:rotate(180deg);fill:var(--acc)}
-.msel-list{position:absolute;top:calc(100% + 6px);left:0;min-width:100%;
-  background:var(--white);border:1.5px solid var(--line);border-radius:10px;
-  box-shadow:0 10px 28px rgba(0,0,0,.14);padding:5px;z-index:400;
-  max-height:0;overflow:hidden;opacity:0;visibility:hidden;
-  transition:max-height .28s ease, opacity .18s ease, visibility .28s}
-.msel.open .msel-list{max-height:290px;overflow-y:auto;opacity:1;visibility:visible}
-.mopt{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;
-  border:none;background:none;color:var(--ink-m);text-align:left;
-  border-radius:7px;padding:8px 11px;font-size:.79rem;font-weight:600;white-space:nowrap}
-.mopt:hover{background:var(--acc-l);color:var(--acc)}
-.mopt.on{background:var(--acc);color:#fff}
-.mopt .mcnt{font-size:.7rem;opacity:.7;font-weight:700}
-.mopt.on .mcnt{opacity:.9}
-.msel-div{height:1px;background:var(--line);margin:4px 6px}
-
 /* 스티키 바에 가려지지 않도록 여백 확보 */
 #articles{scroll-margin-top:210px}
 
@@ -412,6 +384,78 @@ img{max-width:100%}
 .tts-c:hover{border-color:var(--c1);color:var(--c1)}
 .tts-c.main{background:var(--c1);border-color:var(--c1);color:#fff;font-size:.8rem}
 .tts-c.main:hover{background:var(--c2)}
+/* ── 웹진 한 페이지 보기 ── */
+.wz{display:grid;grid-template-columns:250px 1fr;gap:30px;align-items:start}
+.wz-side{position:sticky;top:150px;display:flex;flex-direction:column;gap:12px}
+.wz-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r-l);
+  padding:16px;box-shadow:0 1px 8px rgba(0,0,0,.04)}
+.wz-lbl{font-size:calc(.76rem*var(--fs));font-weight:800;color:var(--c1);margin-bottom:9px}
+.wz-sel{width:100%;border:1.5px solid var(--line);border-radius:var(--r);
+  padding:10px 11px;font-size:calc(.85rem*var(--fs));font-weight:700;font-family:inherit;
+  color:var(--ink);background:var(--paper);cursor:pointer;outline:none}
+.wz-sel:focus{border-color:var(--c1)}
+.wz-cnt{font-size:calc(.74rem*var(--fs));color:var(--ink-s);margin-top:8px;text-align:center}
+.wz-links{display:flex;flex-direction:column;gap:7px}
+.wz-lk{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line);
+  border-radius:var(--r);padding:10px 12px;text-decoration:none;color:var(--ink-m);
+  font-size:calc(.8rem*var(--fs));font-weight:700;transition:all .16s;background:var(--white)}
+.wz-lk:hover{border-color:var(--c1);color:var(--c1);background:var(--c-light);transform:translateX(2px)}
+.wz-lk .ic{font-size:1.02rem;flex-shrink:0}
+.wz-imgcard{padding:0;overflow:hidden}
+.wz-imgcard img{width:100%;display:block}
+.wz-imgcap{font-size:calc(.72rem*var(--fs));color:var(--ink-s);padding:9px 12px;text-align:center}
+
+.wz-hd{margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid var(--c-pale)}
+.wz-hd-t{font-size:calc(1.5rem*var(--fs));font-weight:900;color:var(--c1);margin:4px 0 5px}
+.wz-hd-d{font-size:calc(.83rem*var(--fs));color:var(--ink-s)}
+
+/* 기사 한 편 */
+.wz-art{background:var(--white);border:1px solid var(--line);border-radius:var(--r-l);
+  padding:26px 28px;margin-bottom:20px;box-shadow:0 1px 10px rgba(0,0,0,.04);
+  scroll-margin-top:170px}
+.wz-art-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:11px}
+.wz-cat{border-radius:20px;padding:4px 13px;font-size:calc(.72rem*var(--fs));font-weight:800}
+.wz-meta{font-size:calc(.74rem*var(--fs));color:var(--ink-s);display:flex;gap:12px;flex-wrap:wrap}
+.wz-art h3{font-size:calc(1.24rem*var(--fs));font-weight:900;color:var(--ink);
+  line-height:1.45;margin-bottom:12px}
+.wz-sum{font-size:calc(.88rem*var(--fs));color:var(--ink-m);line-height:1.8;
+  background:var(--c-light);border-left:4px solid var(--c3);border-radius:0 var(--r) var(--r) 0;
+  padding:12px 16px;margin-bottom:16px}
+.wz-body{font-size:calc(.93rem*var(--fs));color:var(--ink-m);line-height:1.95}
+.wz-body p{margin-bottom:13px}
+.wz-body img{max-width:100%;height:auto;border-radius:var(--r);margin:14px 0;display:block}
+.wz-body h4{font-size:calc(1rem*var(--fs));font-weight:800;color:var(--c1);margin:18px 0 8px}
+.wz-photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px;margin-top:16px}
+.wz-photos img{width:100%;border-radius:var(--r);display:block;cursor:zoom-in;
+  aspect-ratio:4/3;object-fit:cover;transition:transform .2s}
+.wz-photos img:hover{transform:scale(1.02)}
+.wz-photos img.fit-contain{object-fit:contain;background:var(--c-light)}
+
+/* 기사별 읽어주기 */
+.wz-tts{display:flex;align-items:center;gap:7px;margin-top:16px;padding-top:14px;
+  border-top:1px dashed var(--line);flex-wrap:wrap}
+.wz-tts-b{border:1.5px solid var(--line);background:var(--white);color:var(--ink-m);
+  border-radius:20px;padding:7px 15px;font-size:calc(.76rem*var(--fs));font-weight:700;
+  font-family:inherit;cursor:pointer;transition:all .16s}
+.wz-tts-b:hover{border-color:var(--c1);color:var(--c1)}
+.wz-tts-b.on{background:var(--c1);border-color:var(--c1);color:#fff}
+.wz-tts-s{font-size:calc(.73rem*var(--fs));color:var(--ink-s)}
+
+/* 사진 크게 보기 */
+.wz-zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:900;
+  display:none;align-items:center;justify-content:center;padding:24px}
+.wz-zoom.open{display:flex}
+.wz-zoom img{max-width:100%;max-height:100%;border-radius:var(--r)}
+.wz-zoom-x{position:absolute;top:18px;right:20px;background:rgba(255,255,255,.2);
+  border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:1.2rem;cursor:pointer}
+
+@media(max-width:900px){
+  .wz{grid-template-columns:1fr;gap:18px}
+  .wz-side{position:static;flex-direction:row;flex-wrap:wrap}
+  .wz-side .wz-card{flex:1 1 220px}
+  .wz-imgcard{display:none !important}
+  .wz-art{padding:20px 18px}
+}
 /* 사진 캐러셀 */
 .carousel{position:relative;border-radius:14px;overflow:hidden;
   background:#111;margin-bottom:22px}
@@ -642,18 +686,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
       <button class="ftag" onclick="setTag('후원봉사',this)">후원·봉사</button>
       <button class="ftag" onclick="setTag('소식',this)">소식</button>
     </div>
-
-    <!-- 월별 -->
-    <div class="month-row hide" id="monthRow">
-      <div class="msel" id="msel">
-        <button class="msel-btn" id="mselBtn" onclick="toggleMonth(event)" aria-haspopup="listbox" aria-expanded="false">
-          <span>📅</span>
-          <span class="msel-cur" id="mselCur">전체 기간</span>
-          <svg class="msel-arw" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
-        </button>
-        <div class="msel-list" id="mselList" role="listbox"></div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -671,29 +703,39 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
       <p>기사를 불러오는 중...</p>
     </div>
 
-    <!-- 특집 -->
-    <div class="feat-wrap" id="featArea" style="display:none">
-      <div class="sec-eyebrow">Featured</div>
-      <div class="feat" id="featCard" tabindex="0" role="button"></div>
-    </div>
+    <!-- 웹진 본문: 왼쪽 사이드 + 오른쪽 기사 -->
+    <div class="wz" id="wzArea" style="display:none">
 
-    <!-- 목록 -->
-    <div id="listArea" style="display:none">
-      <div class="grid-hd">
-        <div>
-          <div class="sec-eyebrow">Articles</div>
-          <div class="sec-title" style="font-size:1.2rem">전체 기사</div>
+      <aside class="wz-side">
+        <div class="wz-card">
+          <div class="wz-lbl">📅 호수 선택</div>
+          <select class="wz-sel" id="wzMonth" onchange="setMonth(this.value)" aria-label="발행 월 선택"></select>
+          <div class="wz-cnt" id="wzCnt"></div>
         </div>
-        <div class="cnt">총 <strong id="cntNum">0</strong>건</div>
-      </div>
-      <div class="grid" id="artGrid" role="list"></div>
-      <div class="empty" id="emptyBox" style="display:none">
-        <div style="font-size:2.5rem">🔍</div>
-        <p id="emptyMsg">검색 결과가 없습니다.</p>
-        <button class="btn-rs" onclick="clearSearch()">초기화</button>
-      </div>
-      <div class="lm-wrap" id="lmBox" style="display:none">
-        <button class="btn-lm" onclick="loadMore()">기사 더보기 ↓</button>
+
+        <div class="wz-card" id="wzLinkCard">
+          <div class="wz-lbl">🔗 바로가기</div>
+          <div class="wz-links" id="wzLinks"></div>
+        </div>
+
+        <div class="wz-card wz-imgcard" id="wzImgCard" style="display:none">
+          <img id="wzImg" src="" alt="" loading="lazy">
+          <div class="wz-imgcap" id="wzImgCap"></div>
+        </div>
+      </aside>
+
+      <div class="wz-main">
+        <div class="wz-hd">
+          <div class="sec-eyebrow">Webzine</div>
+          <h2 class="wz-hd-t" id="wzTitle">전체 기사</h2>
+          <p class="wz-hd-d" id="wzSub"></p>
+        </div>
+        <div id="wzList"></div>
+        <div class="empty" id="emptyBox" style="display:none">
+          <div style="font-size:2.5rem">🔍</div>
+          <p id="emptyMsg">기사가 없습니다.</p>
+          <button class="btn-rs" onclick="clearSearch()">초기화</button>
+        </div>
       </div>
     </div>
   </div>
@@ -720,7 +762,12 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 
 <!-- 모달 -->
 <div class="mov" id="movOv" onclick="if(event.target===this)closeModal()" role="dialog" aria-modal="true" aria-labelledby="mTitle">
-  <div class="modal">
+  <div class="wz-zoom" id="wzZoom" onclick="closeZoom()">
+  <button class="wz-zoom-x" onclick="closeZoom()" aria-label="닫기">✕</button>
+  <img id="wzZoomImg" src="" alt="">
+</div>
+
+<div class="modal">
     <div class="m-top">
       <span class="m-vol" id="mVol">VOL.3 (2026년 상반기)</span>
       <span class="m-cat2" id="mCat"></span>
@@ -873,8 +920,7 @@ window.addEventListener('load', () => {
   document.getElementById('offlineNote').style.display = 'block';
   document.getElementById('progBar').classList.remove('show');
   document.getElementById('loadingBox').style.display = 'none';
-  document.getElementById('featArea').style.display = '';
-  document.getElementById('listArea').style.display = '';
+  document.getElementById('wzArea').style.display = '';
   render();
   applySettings();
   try{ applyDesign(JSON.parse(localStorage.getItem('wc_design')||'null')); }catch{}
@@ -929,78 +975,34 @@ function filtered() {
   });
 }
 
-/* 등록된 기사의 월만 모아 드롭다운 목록을 만듭니다 */
+/* 등록된 기사의 월을 모아 사이드 선택창을 채웁니다 */
 function monthLabel(k){
   const [y,m] = k.split('-');
-  return `${y}년 ${+m}월`;
+  return `${y}년 ${+m}월호`;
 }
 
 function buildMonths(){
   const cnt = {};
   ARTS.forEach(a => { const k = monthKey(a); if(k) cnt[k] = (cnt[k]||0)+1; });
-  const keys = Object.keys(cnt).sort().reverse();   // 최신 월이 위로
+  const keys = Object.keys(cnt).sort().reverse();
   const sig  = keys.join(',');
-
-  const row  = document.getElementById('monthRow');
-  const list = document.getElementById('mselList');
-  if(!row || !list) return;
+  const sel  = document.getElementById('wzMonth');
+  if(!sel) return;
 
   if(sig !== monthSig){
     monthSig = sig;
-
-    // 월이 하나뿐이거나 없으면 월별 줄 자체를 숨깁니다
-    if(keys.length < 2){ row.classList.add('hide'); curMonth='all'; list.innerHTML=''; return; }
-    row.classList.remove('hide');
-
-    // 선택해둔 월이 사라졌으면 전체로 되돌립니다
     if(curMonth!=='all' && !keys.includes(curMonth)) curMonth='all';
-
-    const total = ARTS.length;
-    let html = `<button class="mopt" role="option" onclick="setMonth('all')">`
-             + `<span>전체 기간</span><span class="mcnt">${total}건</span></button>`
-             + `<div class="msel-div"></div>`;
-    keys.forEach(k => {
-      html += `<button class="mopt" role="option" onclick="setMonth('${k}')">`
-            + `<span>${monthLabel(k)}</span><span class="mcnt">${cnt[k]}건</span></button>`;
-    });
-    list.innerHTML = html;
+    let html = `<option value="all">전체 기간 (${ARTS.length}건)</option>`;
+    keys.forEach(k => { html += `<option value="${k}">${monthLabel(k)} (${cnt[k]}건)</option>`; });
+    sel.innerHTML = html;
   }
-
-  syncMonthUI();
+  sel.value = curMonth;
+  const c = document.getElementById('wzCnt');
+  if(c) c.textContent = keys.length ? (keys.length + '개 호 발행') : '';
 }
-
-/* 현재 선택 상태를 버튼 글씨와 목록에 반영 */
-function syncMonthUI(){
-  const cur = document.getElementById('mselCur');
-  if(cur) cur.textContent = curMonth==='all' ? '전체 기간' : monthLabel(curMonth);
-  const opts = document.querySelectorAll('#mselList .mopt');
-  const keys = ['all'].concat(monthSig ? monthSig.split(',') : []);
-  opts.forEach((b,i) => b.classList.toggle('on', keys[i] === curMonth));
-}
-
-function toggleMonth(e){
-  if(e) e.stopPropagation();
-  const w = document.getElementById('msel');
-  if(!w) return;
-  const open = w.classList.toggle('open');
-  document.getElementById('mselBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
-}
-
-function closeMonth(){
-  const w = document.getElementById('msel');
-  if(!w) return;
-  w.classList.remove('open');
-  const b = document.getElementById('mselBtn');
-  if(b) b.setAttribute('aria-expanded','false');
-}
-
-// 바깥을 누르거나 ESC를 누르면 닫힙니다
-document.addEventListener('click', closeMonth);
-document.addEventListener('keydown', e => { if(e.key === 'Escape') closeMonth(); });
 
 function setMonth(m){
-  curMonth = m; visible = 9;
-  closeMonth();
+  curMonth = m; visible = 999;
   render();
   scrollToArticles();
 }
@@ -1029,81 +1031,93 @@ function fitThumb(im){
 function render() {
   buildMonths();
   const list = filtered();
-  const showFeat = curTag==='all' && !q && curMonth==='all';
-  const featArt  = ARTS.find(a => a.featured) || ARTS[0];
 
-  // 특집
-  const fa = document.getElementById('featArea');
-  if(showFeat && featArt) {
-    fa.style.display = '';
-    const fc = document.getElementById('featCard');
-    const cbg = CBGMAP[featArt.cat] || '#d8f3dc';
-    const cc  = CCMAP[featArt.cat]  || '#2d6a4f';
-    const ft = thumbOf(featArt);
-    fc.classList.toggle('no-img', !ft);
-    fc.innerHTML = `
-      ${ft ? `<div class="feat-img" style="background:linear-gradient(135deg,${cbg},${cbg}88)">
-        <img class="feat-photo" src="${ft}" alt="" loading="lazy" onload="fitThumb(this)">
-      </div>` : ``}
-      <div class="feat-body">
-        <div class="feat-cat" style="background:${cbg};color:${cc};border-color:${cbg}">${dispCat(featArt.cat)}</div>
-        <h2>${featArt.title}</h2>
-        <p>${featArt.summary}</p>
-        <div class="feat-meta">
-          <span>📅 ${fmt(featArt.date)}</span>
-          <span>✍️ ${featArt.author||''}</span>
-        </div>
-        <button class="btn-read" onclick="event.stopPropagation();openModal('${featArt.id}')">
-          자세히 읽기
-          <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-        </button>
-      </div>`;
-    fc.onclick = () => openModal(featArt.id);
-    fc.onkeydown = e => { if(e.key==='Enter') openModal(featArt.id); };
-  } else {
-    fa.style.display = 'none';
+  const area = document.getElementById('wzArea');
+  if(area) area.style.display = '';
+
+  // 제목 줄
+  const t = document.getElementById('wzTitle');
+  const sub = document.getElementById('wzSub');
+  if(t) t.textContent = (curMonth==='all') ? '전체 기사' : monthLabel(curMonth);
+  if(sub){
+    const parts = [];
+    if(curTag !== 'all') parts.push('분류: ' + curTag);
+    if(q) parts.push('검색어: ' + q);
+    sub.textContent = (parts.length ? parts.join(' · ') + ' — ' : '') + '총 ' + list.length + '건';
   }
 
-  // 목록
-  document.getElementById('cntNum').textContent = list.length;
-  const grid  = document.getElementById('artGrid');
+  // 기사 본문
+  const box = document.getElementById('wzList');
   const empty = document.getElementById('emptyBox');
-  const lmBox = document.getElementById('lmBox');
+  if(!box) return;
 
-  if(!list.length) {
-    grid.innerHTML = ''; grid.style.display='none';
-    empty.style.display='block'; lmBox.style.display='none'; return;
+  if(!list.length){
+    box.innerHTML = '';
+    if(empty){
+      empty.style.display = '';
+      document.getElementById('emptyMsg').textContent =
+        (q || curTag !== 'all') ? '조건에 맞는 기사가 없습니다.' : '이 호에는 아직 기사가 없습니다.';
+    }
+    return;
   }
-  grid.style.display='grid'; empty.style.display='none';
-  const slice = list.slice(0, visible);
+  if(empty) empty.style.display = 'none';
 
-  grid.innerHTML = slice.map(a => {
-    const cbg = CBGMAP[a.cat] || '#f0f0f0';
-    const cc  = CCMAP[a.cat]  || '#555';
-    return `<div class="card" role="listitem" tabindex="0"
-      onclick="openModal('${a.id}')" onkeydown="if(event.key==='Enter')openModal('${a.id}')"
-      aria-label="${dispCat(a.cat)}: ${a.title}">
-      ${thumbOf(a) ? `<div class="card-img" style="background:linear-gradient(135deg,${cbg},${cbg}66)">
-        <img class="card-photo" src="${thumbOf(a)}" alt="" loading="lazy" onload="fitThumb(this)">
-        <span class="card-badge" style="color:${cc};border-color:${cbg}">${dispCat(a.cat)}</span>
-      </div>` : `<div class="card-noimg">
-        <span class="card-badge-inline" style="color:${cc}">${dispCat(a.cat)}</span>
-      </div>`}
-      <div class="card-body">
-        <h3>${a.title}</h3>
-        <p>${a.summary}</p>
-        <div class="card-ft">
-          <span>📅 ${fmt(a.date)}</span>
-          <span>✍️ ${a.author||''}</span>
-        </div>
+  box.innerHTML = list.map((a, idx) => {
+    const cbg = CBGMAP[a.cat] || '#d8f3dc';
+    const cc  = CCMAP[a.cat]  || '#2d6a4f';
+
+    // 본문에서 사진을 분리 — 글은 위, 사진은 아래 갤러리로
+    const tmp = document.createElement('div');
+    tmp.innerHTML = a.content || `<p>${a.summary||''}</p>`;
+    const imgs = [...tmp.querySelectorAll('img')].map(im => im.getAttribute('src')).filter(Boolean);
+    tmp.querySelectorAll('img').forEach(im => im.remove());
+
+    const gallery = imgs.length
+      ? `<div class="wz-photos">` + imgs.map(src =>
+          `<img src="${src}" alt="" loading="lazy" onload="fitThumb(this)" onclick="openZoom('${src}')">`
+        ).join('') + `</div>`
+      : '';
+
+    return `
+    <article class="wz-art" id="art-${a.id}">
+      <div class="wz-art-top">
+        <span class="wz-cat" style="background:${cbg};color:${cc}">${dispCat(a.cat)}</span>
+        <span class="wz-meta"><span>📅 ${fmt(a.date)}</span>${a.author?`<span>✍️ ${a.author}</span>`:''}</span>
       </div>
-    </div>`;
+      <h3>${a.title||''}</h3>
+      ${a.summary ? `<div class="wz-sum">${a.summary}</div>` : ''}
+      <div class="wz-body" id="body-${a.id}">${tmp.innerHTML}</div>
+      ${gallery}
+      <div class="wz-tts">
+        <button class="wz-tts-b" id="ttsb-${a.id}" onclick="ttsToggle('${a.id}')">🔊 읽어주기</button>
+        <button class="wz-tts-b" onclick="stopTTS()">■ 정지</button>
+        <select class="wz-tts-b" onchange="setTtsRate(this.value)" aria-label="읽는 속도">
+          <option value="0.8">느리게</option><option value="1" selected>보통</option>
+          <option value="1.2">빠르게</option><option value="1.5">아주 빠르게</option>
+        </select>
+        <span class="wz-tts-s" id="ttss-${a.id}"></span>
+      </div>
+    </article>`;
   }).join('');
-
-  lmBox.style.display = list.length > visible ? 'block' : 'none';
 }
 
-function loadMore() { visible += 6; render(); }
+/* 사진 크게 보기 */
+function openZoom(src){
+  const z = document.getElementById('wzZoom');
+  const im = document.getElementById('wzZoomImg');
+  if(!z || !im) return;
+  im.src = src; z.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeZoom(){
+  const z = document.getElementById('wzZoom');
+  if(!z) return;
+  z.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeZoom(); });
+
+function loadMore() { render(); }
 
 /* ── 필터 ── */
 function setTag(tag, btn) {
@@ -1226,8 +1240,50 @@ function setTtsRate(v){
   }
 }
 
-function setTtsState(t){ const e=document.getElementById('ttsState'); if(e)e.textContent=t; }
-function setPlayIcon(p){ const b=document.getElementById('ttsPlayBtn'); if(b){ b.textContent=p?'❚❚':'▶'; b.setAttribute('aria-label',p?'일시정지':'재생'); } }
+/* 기사별 읽어주기 — 같은 기사를 다시 누르면 일시정지/재개 */
+let ttsArtId = null;
+function ttsToggle(id){
+  if(ttsPlay && ttsArtId === id){ ttsPlayPause(); return; }   // 같은 글 → 일시정지/재개
+  stopTTS();
+  ttsArtId = id;
+  const a = ARTS.find(x => String(x.id) === String(id));
+  if(!a){ return; }
+  const body = document.getElementById('body-'+id);
+  const text = (a.title||'') + '. ' + (a.summary||'') + ' ' + (body ? body.innerText : '');
+  startTTS(text.trim());
+}
+
+function setTtsState(t){
+  const e = document.getElementById('ttsState'); if(e) e.textContent = t;
+  if(ttsArtId){ const s2 = document.getElementById('ttss-'+ttsArtId); if(s2) s2.textContent = t; }
+}
+function setPlayIcon(p){
+  const b = document.getElementById('ttsPlayBtn');
+  if(b){ b.textContent = p?'❚❚':'▶'; b.setAttribute('aria-label', p?'일시정지':'재생'); }
+  document.querySelectorAll('.wz-tts-b[id^="ttsb-"]').forEach(x => x.classList.remove('on'));
+  if(ttsArtId){
+    const t = document.getElementById('ttsb-'+ttsArtId);
+    if(t){ t.classList.toggle('on', p); t.textContent = p ? '❚❚ 일시정지' : '🔊 읽어주기'; }
+  }
+  document.querySelectorAll('.wz-tts-b[id^="ttsb-"]').forEach(x => {
+    if(!ttsArtId || x.id !== 'ttsb-'+ttsArtId) x.textContent = '🔊 읽어주기';
+  });
+}
+
+/* 주어진 글을 읽습니다 */
+function startTTS(text){
+  if(!window.speechSynthesis){ setTtsState('이 브라우저는 음성 읽기를 지원하지 않습니다.'); return; }
+  if(!text){ setTtsState('읽을 내용이 없습니다.'); return; }
+  ttsSession++;
+  if(speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+  ttsChunks = splitText(text, 60);
+  ttsPlay=true; ttsPaused=false; ttsIdx=0; ttsStarted=false; ttsMovedAt=Date.now();
+  ttsQueuedTo=-1;
+  setPlayIcon(true);
+  setTtsState('재생 중... (1/'+ttsChunks.length+')');
+  queueFrom(0, ttsSession);
+  startWatch();
+}
 
 function ttsPlayPause() {
   if(!window.speechSynthesis){ setTtsState('이 브라우저는 음성 읽기를 지원하지 않습니다.'); return; }
@@ -1358,8 +1414,13 @@ function stopTTS() {
   if(window.speechSynthesis) speechSynthesis.cancel();
   if(ttsWatch){ clearInterval(ttsWatch); ttsWatch=null; }
   ttsPlay=false; ttsPaused=false; ttsChunks=[]; ttsIdx=0; ttsStarted=false; ttsQueuedTo=-1;
-  setTtsState('음성 읽어주기 준비 완료');
+  setTtsState('');
   setPlayIcon(false);
+  ttsArtId = null;
+  document.querySelectorAll('.wz-tts-b[id^="ttsb-"]').forEach(x => {
+    x.classList.remove('on'); x.textContent = '🔊 읽어주기';
+  });
+  document.querySelectorAll('[id^="ttss-"]').forEach(x => x.textContent = '');
 }
 
 /* 목소리 목록은 늦게 준비되는 경우가 많아 미리 한 번 불러 둡니다 */
@@ -1396,6 +1457,43 @@ function openMob(){document.getElementById('mobOv').classList.add('open');docume
 function closeMob(){document.getElementById('mobOv').classList.remove('open');document.body.style.overflow=''}
 
 /* ── admin 설정 반영 ── */
+/* ── 사이드 바로가기 링크 / 이미지 ── */
+const DEF_LINKS = [
+  {icon:'🏠', label:'복지관 홈페이지', url:'https://www.yajb.org'},
+  {icon:'📷', label:'인스타그램',     url:''},
+  {icon:'💬', label:'페이스북',       url:''}
+];
+
+function applyLinks(s){
+  const box = document.getElementById('wzLinks');
+  const card = document.getElementById('wzLinkCard');
+  if(!box) return;
+  let links = Array.isArray(s && s.links) ? s.links : DEF_LINKS;
+  links = links.filter(l => l && l.url && String(l.url).trim());
+  if(!links.length){ if(card) card.style.display='none'; return; }
+  if(card) card.style.display='';
+  const esc = v => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  box.innerHTML = links.map(l =>
+    `<a class="wz-lk" href="${esc(l.url)}" target="_blank" rel="noopener">
+       <span class="ic">${esc(l.icon||'🔗')}</span><span>${esc(l.label||'바로가기')}</span>
+     </a>`).join('');
+}
+
+function applySideImage(s){
+  const card = document.getElementById('wzImgCard');
+  const img  = document.getElementById('wzImg');
+  const cap  = document.getElementById('wzImgCap');
+  if(!card || !img) return;
+  const src = s && s.sideImage;
+  if(!src){ card.style.display='none'; return; }
+  img.src = src;
+  img.alt = (s.sideImageCap || '안내 이미지');
+  if(cap) cap.textContent = s.sideImageCap || '';
+  img.onerror = () => { card.style.display='none'; };
+  card.style.display='';
+}
+
 /* ── 디자인(색상·배경) 적용 ── */
 function patternCSS(kind){
   const w = 'rgba(255,255,255,.4)';
@@ -1477,6 +1575,9 @@ function applySettings(given){
       const mv=document.getElementById('mVol');
       if(mv)mv.textContent=s.vol;
     }
+    applyLinks(s);
+    applySideImage(s);
+
     // 히어로 큰제목 — 1줄 / 2줄 + 강조(초록) 조합
     const esc = v => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     if(s.heroLine1 || s.heroLine2 || s.heroAccent){

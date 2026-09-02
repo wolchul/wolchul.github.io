@@ -665,6 +665,24 @@ input,select,textarea{font-family:inherit}
               <label>호수 전체 문구 <small style="color:var(--text-s);font-weight:400">— 히어로 배지에 그대로 표시</small></label>
               <input id="svol" placeholder="영암장복 · 2026년 소식지">
             </div>
+            <div class="sf" style="border-top:2px dashed var(--border);padding-top:16px;margin-top:6px">
+              <label>🔗 사이드 바로가기 링크 <small style="color:var(--text-s);font-weight:400">— 주소를 비우면 그 줄은 표시되지 않습니다</small></label>
+              <div id="lkRows" style="display:flex;flex-direction:column;gap:8px"></div>
+              <button class="btn bo bsm" onclick="lkAdd()" style="margin-top:8px">+ 링크 추가</button>
+            </div>
+            <div class="sf">
+              <label>🖼 사이드 이미지 <small style="color:var(--text-s);font-weight:400">— 배너·안내 사진</small></label>
+              <div style="display:flex;gap:7px;align-items:center">
+                <input id="ssideImg" placeholder="images/banner.jpg 또는 https://..." style="flex:1">
+                <button class="btn bo bsm" onclick="pickSideImg()" style="white-space:nowrap">📁 고르기</button>
+              </div>
+              <input id="ssideCap" placeholder="이미지 아래 설명 (선택)" style="margin-top:7px">
+              <div id="sideImgPrev" style="margin-top:9px"></div>
+              <p style="font-size:.71rem;color:var(--text-s);margin-top:6px">
+                <a href="https://github.com/wolchul/wolchul.github.io/upload/main/images" target="_blank" style="color:var(--sky);font-weight:700">⬆ GitHub images 폴더에 사진 올리기</a>
+                → 올린 뒤 <strong>📁 고르기</strong>를 누르면 목록에서 선택할 수 있습니다.
+              </p>
+            </div>
             <div class="sf">
               <label>메인 큰제목 1번째 줄 <small style="color:var(--text-s);font-weight:400">— 예: 장애인과 함께</small></label>
               <input id="sheroLine1" placeholder="장애인과 함께">
@@ -1673,6 +1691,76 @@ async function doDelete(){
 }
 
 
+
+/* ═══════ 사이드 바로가기 링크 ═══════ */
+const LK_DEFAULT = [
+  {icon:'🏠', label:'복지관 홈페이지', url:'https://www.yajb.org'},
+  {icon:'📷', label:'인스타그램',     url:''},
+  {icon:'💬', label:'페이스북',       url:''}
+];
+let LKS = [];
+
+function lkRender(){
+  const box = gi('lkRows'); if(!box) return;
+  const esc = v => String(v==null?'':v).replace(/"/g,'&quot;');
+  box.innerHTML = LKS.map((l,i)=>`
+    <div style="display:flex;gap:6px;align-items:center">
+      <input value="${esc(l.icon)}" onchange="lkSet(${i},'icon',this.value)"
+        style="width:52px;text-align:center;flex-shrink:0" placeholder="🔗" title="아이콘">
+      <input value="${esc(l.label)}" onchange="lkSet(${i},'label',this.value)"
+        style="flex:0 0 130px" placeholder="표시 이름">
+      <input value="${esc(l.url)}" onchange="lkSet(${i},'url',this.value)"
+        style="flex:1" placeholder="https://...">
+      <button class="btn bd bsm" onclick="lkDel(${i})" style="flex-shrink:0" title="삭제">✕</button>
+    </div>`).join('');
+}
+function lkSet(i,k,v){ if(LKS[i]) LKS[i][k]=v; }
+function lkAdd(){ LKS.push({icon:'🔗',label:'',url:''}); lkRender(); }
+function lkDel(i){ LKS.splice(i,1); lkRender(); }
+
+/* 사이드 이미지 미리보기 */
+function sideImgPrev(){
+  const v = (gi('ssideImg')?.value||'').trim();
+  const box = gi('sideImgPrev'); if(!box) return;
+  box.innerHTML = v
+    ? `<img src="${v.replace(/"/g,'&quot;')}" alt="미리보기"
+         style="max-width:210px;width:100%;border:1.5px solid var(--border);border-radius:8px;display:block"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+       <div style="display:none;font-size:.74rem;color:var(--red)">⚠️ 이미지를 불러올 수 없습니다. 경로를 확인해 주세요.</div>`
+    : '';
+}
+
+/* images 폴더에서 사진 고르기 */
+async function pickSideImg(){
+  const box = gi('sideImgPrev');
+  if(box) box.innerHTML = '<div style="font-size:.78rem;color:var(--text-s)">불러오는 중...</div>';
+  try{
+    const r = await fetch('https://api.github.com/repos/wolchul/wolchul.github.io/contents/images');
+    if(!r.ok) throw new Error('GitHub 응답 오류 ('+r.status+')');
+    const data = await r.json();
+    const files = data.filter(f=>f.type==='file'&&/\.(jpe?g|png|gif|webp)$/i.test(f.name));
+    if(!files.length){
+      box.innerHTML = '<div style="font-size:.78rem;color:var(--text-s)">images 폴더에 사진이 없습니다. 먼저 올려주세요.</div>';
+      return;
+    }
+    box.innerHTML =
+      '<div style="font-size:.75rem;font-weight:700;color:var(--navy);margin-bottom:6px">사진을 클릭하면 선택됩니다</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;max-height:230px;overflow:auto">' +
+      files.map(f=>`<img src="images/${f.name}" alt="${f.name}" title="${f.name}"
+        onclick="chooseSideImg('images/${f.name}')"
+        style="width:100%;aspect-ratio:1;object-fit:cover;border:2px solid var(--border);
+               border-radius:6px;cursor:pointer">`).join('') + '</div>';
+  }catch(e){
+    box.innerHTML = '<div style="font-size:.76rem;color:var(--red)">❌ 목록을 불러오지 못했습니다: '
+      + e.message + '</div>';
+  }
+}
+function chooseSideImg(path){
+  const e = gi('ssideImg'); if(e) e.value = path;
+  sideImgPrev();
+  toast('선택되었습니다. 저장을 눌러주세요.','ok');
+}
+
 /* ═══════ 디자인 꾸미기 ═══════ */
 const DZ_THEMES = {
   green:  {nm:'숲 초록 (기본)', c1:'#1b4332',c2:'#2d6a4f',c3:'#40916c',c4:'#74c69d',acc:'#f77f00'},
@@ -1840,7 +1928,8 @@ const SET_DEFAULT = {
   addr:'전남광주통합특별시 영암군 영암읍 오리정길 37',
   tel:'061-470-6743', fax:'061-470-6769', email:'yasg2025@naver.com', web:'www.yajb.org',
   acc1:'광주은행 1107-021-791537', acc2:'광주은행 1107-021-791571',
-  accName:'영암군장애인종합복지관', donTel:'061-470-6743'
+  accName:'영암군장애인종합복지관', donTel:'061-470-6743',
+  links:[], sideImage:'', sideImageCap:''
 };
 
 function getSettingLocal(){
@@ -1866,6 +1955,15 @@ async function loadSetForm(){
   sv('seml',s.email); sv('sweb',s.web);
   sv('sa1',s.acc1); sv('sa2',s.acc2);
   sv('san',s.accName); sv('sdt',s.donTel);
+
+  // 사이드 바로가기 · 이미지
+  LKS = Array.isArray(s.links) && s.links.length ? s.links.map(l=>({
+    icon:l.icon||'🔗', label:l.label||'', url:l.url||''
+  })) : LK_DEFAULT.map(l=>({...l}));
+  lkRender();
+  sv('ssideImg', s.sideImage); sv('ssideCap', s.sideImageCap);
+  const si = gi('ssideImg'); if(si && !si.dataset.b){ si.dataset.b='1'; si.addEventListener('input', sideImgPrev); }
+  sideImgPrev();
 }
 
 async function saveSetting(){
@@ -1884,7 +1982,11 @@ async function saveSetting(){
     acc1: gi('sa1')?.value||'',
     acc2: gi('sa2')?.value||'',
     accName: gi('san')?.value||'',
-    donTel: gi('sdt')?.value||''
+    donTel: gi('sdt')?.value||'',
+    links: LKS.map(l=>({icon:(l.icon||'🔗').trim(), label:(l.label||'').trim(), url:(l.url||'').trim()}))
+              .filter(l=>l.url),
+    sideImage: (gi('ssideImg')?.value||'').trim(),
+    sideImageCap: (gi('ssideCap')?.value||'').trim()
   };
   localStorage.setItem('wc_set', JSON.stringify(s));   // 관리자 화면용 임시 보관
 
