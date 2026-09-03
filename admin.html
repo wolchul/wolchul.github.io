@@ -226,7 +226,8 @@ input,select,textarea{font-family:inherit}
 #cedit{min-height:320px;padding:14px;font-size:.85rem;line-height:1.8;outline:none;color:var(--text)}
 #cedit img{max-width:100%;height:auto;border-radius:8px;margin:8px 0}
 /* 편집 중에는 사진 높이를 제한해 칸이 지나치게 늘어나지 않게 합니다 */
-#cedit .wg img{max-height:230px;object-fit:contain}
+#cedit .wg img{max-height:170px;width:auto !important;max-width:100%;
+  object-fit:contain;margin:4px auto;display:block}
 #csrc{display:none;width:100%;min-height:260px;padding:14px;font-size:.77rem;font-family:monospace;border:none;outline:none;resize:vertical;color:var(--text);background:var(--bg)}
 .fa{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 
@@ -275,10 +276,13 @@ input,select,textarea{font-family:inherit}
   padding:4px;text-align:center}
 /* 편집기 격자 */
 .ct-sep{display:inline-block;width:1px;height:18px;background:var(--border);margin:0 5px;vertical-align:middle}
-#cedit .wg{display:grid;gap:12px;margin:16px 0;padding:8px;align-items:start;
-  border:1.5px dashed #b9c6d1;border-radius:8px;background:#fbfcfd}
-#cedit .wg .wc{border:1px dashed #d3dbe2;border-radius:6px;padding:10px;min-height:70px;
-  background:#fff;transition:border-color .15s;overflow-wrap:anywhere;min-width:0}
+/* 표처럼 보이도록 — 같은 줄의 칸은 높이를 맞춥니다 */
+#cedit .wg{display:grid;gap:0;margin:16px 0;padding:0;align-items:stretch;
+  grid-auto-rows:minmax(140px,auto);
+  border:2px solid #9fb0be;border-radius:6px;background:#fff;overflow:hidden}
+#cedit .wg .wc{border:1px solid #cfd8e0;padding:10px;background:#fff;
+  transition:border-color .15s;overflow-wrap:anywhere;min-width:0;
+  display:flex;flex-direction:column;justify-content:flex-start}
 #cedit .wg .wc > *:first-child{margin-top:0}
 #cedit .wg .wc > *:last-child{margin-bottom:0}
 #cedit .wg .wc p:empty::before{content:'내용을 입력하세요';color:#c2cad2;font-size:.78rem}
@@ -566,6 +570,10 @@ input,select,textarea{font-family:inherit}
                   <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥ 칸 넓히기</button>
                   <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤ 좁히기</button>
                   <button onclick="gridDel()" type="button" title="격자 전체 삭제">▨ 격자 삭제</button>
+                  <span class="ct-sep"></span>
+                  <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
+                  <button onclick="bgPick('grid')" type="button" title="격자 전체 배경색">🎨 표 배경</button>
+                  <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
                   <span class="ct-sep"></span>
                   <button onclick="imgSize('s')" type="button" title="선택한 사진 작게">🖼 작게</button>
                   <button onclick="imgSize('m')" type="button">보통</button>
@@ -869,6 +877,25 @@ input,select,textarea{font-family:inherit}
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
       <button class="btn bd bsm" onclick="deleteSp()">삭제</button>
       <button class="btn bo bsm" onclick="closeSpDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 배경색 고르기 -->
+<div class="conf" id="bgDlg">
+  <div class="conf-box" style="max-width:420px">
+    <h3>🎨 배경색 고르기</h3>
+    <p id="bgTarget" style="margin-bottom:14px">선택한 칸의 배경색을 정합니다.</p>
+    <div id="bgSwatches" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px"></div>
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+      <span style="font-size:.78rem;font-weight:700;color:var(--text)">직접 고르기</span>
+      <input type="color" id="bgCustom" value="#f0faf2"
+        style="width:46px;height:34px;border:none;background:none;cursor:pointer;padding:0">
+      <button class="btn bs bsm" onclick="bgApply(gi('bgCustom').value)">적용</button>
+      <button class="btn bo bsm" onclick="bgApply('')">배경 없애기</button>
+    </div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('bgDlg').classList.remove('open')">닫기</button>
     </div>
   </div>
 </div>
@@ -2245,6 +2272,61 @@ function phPick(path){
   insertImageInto(path);
   addPreview(path, '');
   toast('사진을 넣었습니다. 크기 버튼으로 조절하세요.','ok');
+}
+
+
+/* ═══════ 칸·표 배경색 / 여백 ═══════ */
+const BG_COLORS = [
+  '#f0faf2','#d8f3dc','#e8f4fb','#d6ebf7','#fff3e0','#ffe8d6',
+  '#fdf6ec','#f7f0ff','#ffeef2','#f2f4f7','#e9edf1','#ffffff'
+];
+let bgMode = 'cell';
+
+function bgPick(mode){
+  if(mode==='cell' && !selCell){ toast('배경을 칠할 칸을 먼저 클릭해 주세요.','err'); return; }
+  if(mode==='grid'){
+    const g = selCell ? selCell.closest('.wg') : null;
+    if(!g){ toast('격자의 칸을 먼저 클릭해 주세요.','err'); return; }
+  }
+  bgMode = mode;
+  gi('bgTarget').textContent = (mode==='cell')
+    ? '선택한 칸의 배경색을 정합니다.'
+    : '격자 전체의 배경색을 정합니다.';
+  gi('bgSwatches').innerHTML = BG_COLORS.map(c =>
+    `<button onclick="bgApply('${c}')" title="${c}"
+      style="height:38px;border:1.5px solid #d0d7de;border-radius:6px;background:${c};cursor:pointer"></button>`
+  ).join('');
+  gi('bgDlg').classList.add('open');
+}
+
+function bgApply(color){
+  const target = (bgMode === 'grid')
+    ? (selCell ? selCell.closest('.wg') : null)
+    : selCell;
+  if(!target) return;
+  if(color){
+    target.style.background = color;
+    target.dataset.bg = color;
+  }else{
+    target.style.background = '';
+    delete target.dataset.bg;
+  }
+  gi('bgDlg').classList.remove('open');
+  syncSrc();
+  toast(color ? '배경색을 적용했습니다.' : '배경을 없앴습니다.','ok');
+}
+
+/* 칸 여백 — 좁게 / 보통 / 넓게 순환 */
+function cellPad(){
+  if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
+  const steps = ['10px','20px','32px'];
+  const names = ['보통','넓게','아주 넓게'];
+  const cur = selCell.dataset.pad || '10px';
+  const i = (steps.indexOf(cur) + 1) % steps.length;
+  selCell.style.padding = steps[i];
+  selCell.dataset.pad = steps[i];
+  syncSrc();
+  toast('칸 여백: ' + names[i], 'ok');
 }
 
 /* 격자 선택을 풀어 본문 자리에 넣도록 되돌립니다 */

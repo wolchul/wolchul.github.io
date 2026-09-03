@@ -452,8 +452,12 @@ img{max-width:100%}
 .wz-body{ -webkit-user-select:text; user-select:text; }
 
 /* 본문 안 격자(표) */
-.wz-body .wg{display:grid;gap:16px;margin:18px 0;align-items:start}
-.wz-body .wg .wc{min-width:0}
+/* 표 모양 격자 — 같은 줄의 칸은 높이를 맞춥니다 */
+.wz-body .wg{display:grid;gap:0;margin:20px 0;align-items:stretch;
+  border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+.wz-body .wg .wc{min-width:0;padding:16px;border:1px solid var(--line);
+  display:flex;flex-direction:column;justify-content:flex-start}
+.wz-body .wg .wc img{max-width:100%;height:auto;margin:6px auto}
 .wz-body .wg .wc[data-span="2"]{grid-column:span 2}
 .wz-body .wg .wc[data-span="3"]{grid-column:span 3}
 .wz-body .wg .wc[data-span="4"]{grid-column:span 4}
@@ -464,8 +468,9 @@ img{max-width:100%}
 .wz-body .wg img{margin:8px auto;border-radius:var(--r);cursor:zoom-in}
 .wz-side-img img{cursor:zoom-in}
 @media(max-width:640px){
-  .wz-body .wg{grid-template-columns:minmax(0,1fr) !important;gap:12px}
+  .wz-body .wg{grid-template-columns:minmax(0,1fr) !important}
   .wz-body .wg .wc[data-span]{grid-column:auto !important}
+  .wz-body .wg .wc{padding:13px}
 }
 
 /* 기사별 읽어주기 */
