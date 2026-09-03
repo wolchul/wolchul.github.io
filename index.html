@@ -411,6 +411,22 @@ img{max-width:100%}
 .wz-hd-t{font-size:calc(1.5rem*var(--fs));font-weight:900;color:var(--c1);margin:4px 0 5px}
 .wz-hd-d{font-size:calc(.83rem*var(--fs));color:var(--ink-s)}
 
+/* 글자를 키우면 격자도 함께 넓어지도록 — 좁은 칸에 큰 글자가 갇히는 것 방지 */
+.fz-l .wz-body .wg,
+.fz-x .wz-body .wg{grid-template-columns:minmax(0,1fr) !important;gap:14px}
+.fz-l .wz-body .wg .wc[data-span],
+.fz-x .wz-body .wg .wc[data-span]{grid-column:auto !important}
+.fz-l #wzList,
+.fz-x #wzList{grid-template-columns:minmax(0,1fr)}
+.fz-l .wz-art.span-half,
+.fz-x .wz-art.span-half{grid-column:1 / -1}
+/* 사진 옆 글 배치도 위아래로 */
+.fz-x .wz-art.lay-left .wz-inner,
+.fz-x .wz-art.lay-right .wz-inner{grid-template-columns:minmax(0,1fr)}
+.fz-x .wz-art.lay-right .wz-side-img{order:0}
+/* 글자가 커져도 단어 단위로 줄바꿈 */
+.wz-body,.wz-body .wc,.wz-sum{word-break:keep-all;overflow-wrap:break-word}
+
 /* 웹진 도구 줄 */
 .wz-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
 .wz-tool{border:1.5px solid var(--line);background:var(--white);color:var(--ink-m);
