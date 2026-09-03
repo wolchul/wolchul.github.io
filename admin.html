@@ -226,8 +226,7 @@ input,select,textarea{font-family:inherit}
 #cedit{min-height:320px;padding:14px;font-size:.85rem;line-height:1.8;outline:none;color:var(--text)}
 #cedit img{max-width:100%;height:auto;border-radius:8px;margin:8px 0}
 /* 편집 중에는 사진 높이를 제한해 칸이 지나치게 늘어나지 않게 합니다 */
-#cedit .wg img{max-height:170px;width:auto !important;max-width:100%;
-  object-fit:contain;margin:4px auto;display:block}
+#cedit .wg img{max-width:100%;height:auto;margin:4px auto;display:block}
 #csrc{display:none;width:100%;min-height:260px;padding:14px;font-size:.77rem;font-family:monospace;border:none;outline:none;resize:vertical;color:var(--text);background:var(--bg)}
 .fa{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 
@@ -283,8 +282,21 @@ input,select,textarea{font-family:inherit}
 .rz-e {right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
 .rz-s {bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}
 .rz-se{right:-7px;bottom:-7px;cursor:nwse-resize;border-radius:50%}
-.rz-size{position:absolute;top:-24px;left:0;background:var(--sky);color:#fff;
-  font-size:.68rem;font-weight:800;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.rz-size{position:absolute;top:-26px;left:0;background:var(--sky);color:#fff;
+  font-size:.7rem;font-weight:800;padding:3px 9px;border-radius:5px;white-space:nowrap;
+  box-shadow:0 2px 6px rgba(0,0,0,.25);transition:all .12s}
+.rz-size.big{font-size:.86rem;padding:5px 13px;top:-34px;background:var(--navy)}
+
+/* 격자 눈금 */
+.cg-ruler span{position:absolute;top:-21px;text-align:center;font-size:.66rem;font-weight:800;
+  color:var(--sky);background:var(--sky-l);border-radius:4px;padding:1px 0;
+  border:1px solid var(--sky);box-sizing:border-box;overflow:hidden;white-space:nowrap}
+.cg-total{position:absolute;top:-21px;right:0;transform:translateY(-100%);
+  font-size:.66rem;font-weight:800;color:var(--text-s);white-space:nowrap}
+.drag-tip{position:absolute;z-index:70;transform:translate(-50%,-100%);
+  background:var(--navy);color:#fff;font-size:.78rem;font-weight:800;
+  padding:5px 11px;border-radius:6px;white-space:nowrap;pointer-events:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);display:none}
 
 /* 격자 세로선 끌어서 칸 너비 조절 */
 .cg-bar{position:absolute;z-index:55;pointer-events:none}
@@ -617,6 +629,8 @@ input,select,textarea{font-family:inherit}
                   <button onclick="cellMergeSel()" type="button" title="Ctrl+클릭으로 고른 칸들을 하나로 합치기">⊡ 칸 합치기</button>
                   <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥ 넓히기</button>
                   <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤ 좁히기</button>
+                  <button onclick="const n=repairGrids(); toast(n?('어긋난 '+n+'곳을 바로잡았습니다.'):'격자에 이상이 없습니다.','ok')"
+                    type="button" title="격자가 깨졌을 때 모양 바로잡기">🔧 격자 복구</button>
                   <button onclick="gridDel()" type="button" title="격자 전체 삭제">▨ 격자 삭제</button>
                   <span class="ct-sep"></span>
                   <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
@@ -1924,7 +1938,8 @@ function newArt(){
   setTimeout(()=>{
     initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint();
     const n = fixImgSrcs();
-    if(n) toast('사진 주소 ' + n + '개를 바로잡았습니다. 저장해 주세요.','ok');
+    const g = repairGrids();
+    if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
   }, 100);
 }
 function editArt(id){
@@ -1948,7 +1963,8 @@ function editArt(id){
   setTimeout(()=>{
     initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint();
     const n = fixImgSrcs();
-    if(n) toast('사진 주소 ' + n + '개를 바로잡았습니다. 저장해 주세요.','ok');
+    const g = repairGrids();
+    if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
   }, 100);
 }
 
@@ -2037,7 +2053,7 @@ function insertImg(){ insertImgUrl(); }
 async function saveArt(){
   const title=gi('etti').value.trim(), summary=gi('esum').value.trim();
   hideHandles(); hideColBars();
-  if(!srcMode) normalizeGrids();
+  if(!srcMode){ repairGrids(); normalizeGrids(); }
   const cont=cleanHTML(srcMode?gi('csrc').value:gi('cedit').innerHTML).trim();
   if(!title){ toast('제목을 입력해주세요.','err'); return; }
   if(!summary){ toast('요약을 입력해주세요.','err'); return; }
@@ -2318,6 +2334,7 @@ function colAdd(){
   if(info.cols >= 6){ toast('가로는 최대 6칸까지입니다.','err'); return; }
   const cols = info.cols + 1;
   info.grid.dataset.cols = cols;
+  delete info.grid.dataset.fr;                 // 칸 수가 바뀌면 너비 비율을 다시 계산
   info.grid.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
   // 각 줄 끝에 칸을 하나씩 더합니다
   info.rows.forEach(r => {
@@ -2635,9 +2652,15 @@ function showColBars(g){
         g.style.gridTemplateColumns = fr.map(v => v.toFixed(2) + 'fr').join(' ');
         g.dataset.fr = fr.map(v => v.toFixed(2)).join(',');
         placeColBars();
+        // 양쪽 칸이 몇 픽셀인지 보여줍니다
+        const tot = fr.reduce((a,b)=>a+b, 0);
+        const wL = Math.round(fr[i-1] / tot * rect.width);
+        const wR = Math.round(fr[i]   / tot * rect.width);
+        showTip(e2.clientX, rect.top + window.scrollY - 6, wL + 'px  |  ' + wR + 'px');
       };
       const up = () => {
         h.classList.remove('on');
+        hideTip();
         document.removeEventListener('mousemove', move);
         document.removeEventListener('mouseup', up);
         syncSrc();
@@ -2673,7 +2696,41 @@ function placeColBars(){
     acc += fr[n];
     h.style.left = (acc / total * r.width) + 'px';
   });
+  // 칸마다 폭(px)을 위에 표시
+  let ruler = cgBar.querySelector('.cg-ruler');
+  if(!ruler){
+    ruler = document.createElement('div');
+    ruler.className = 'cg-ruler';
+    cgBar.appendChild(ruler);
+  }
+  let left = 0;
+  ruler.innerHTML = fr.map(v => {
+    const w = v / total * r.width;
+    const html = `<span style="left:${left}px;width:${w}px">${Math.round(w)}px</span>`;
+    left += w;
+    return html;
+  }).join('');
+  // 표 전체 크기도 함께
+  const tot = cgBar.querySelector('.cg-total') || (() => {
+    const e = document.createElement('span'); e.className = 'cg-total'; cgBar.appendChild(e); return e;
+  })();
+  tot.textContent = '표 ' + Math.round(r.width) + ' × ' + Math.round(r.height) + 'px';
 }
+
+/* 끌 때 따라다니는 작은 안내 */
+let tipEl = null;
+function showTip(x, y, txt){
+  if(!tipEl){
+    tipEl = document.createElement('div');
+    tipEl.className = 'drag-tip';
+    document.body.appendChild(tipEl);
+  }
+  tipEl.textContent = txt;
+  tipEl.style.left = (x + window.scrollX) + 'px';
+  tipEl.style.top  = y + 'px';
+  tipEl.style.display = 'block';
+}
+function hideTip(){ if(tipEl) tipEl.style.display = 'none'; }
 
 function hideColBars(){
   if(cgBar){ cgBar.remove(); cgBar = null; cgGrid = null; }
@@ -2766,11 +2823,12 @@ function showHandles(im){
         if(dir === 'se') im.style.height = 'auto';
         im.dataset.px = w;
         delete im.dataset.sz;
-        placeHandles();
+        placeHandles(true);
       };
       const up = () => {
         document.removeEventListener('mousemove', move);
         document.removeEventListener('mouseup', up);
+        placeHandles(false);
         syncSrc();
       };
       document.addEventListener('mousemove', move);
@@ -2779,8 +2837,8 @@ function showHandles(im){
   });
 }
 
-function placeHandles(){
-  if(!rzHandles || !rzTarget) return;
+function placeHandles(dragging){
+  if(!rzHandles || !rzTarget || !document.body.contains(rzTarget)) return hideHandles();
   const r = rzTarget.getBoundingClientRect();
   const b = rzHandles;
   b.style.left = (r.left + window.scrollX) + 'px';
@@ -2788,7 +2846,13 @@ function placeHandles(){
   b.style.width = r.width + 'px';
   b.style.height = r.height + 'px';
   const s = b.querySelector('.rz-size');
-  if(s) s.textContent = Math.round(r.width) + ' × ' + Math.round(r.height);
+  if(s){
+    const nw = rzTarget.naturalWidth || 0;
+    const pct = nw ? Math.round(r.width / nw * 100) : 0;
+    s.textContent = Math.round(r.width) + ' × ' + Math.round(r.height) + 'px'
+      + (pct ? '  (원본의 ' + pct + '%)' : '');
+    s.classList.toggle('big', !!dragging);
+  }
 }
 
 function hideHandles(){
@@ -3095,6 +3159,7 @@ function cellSplitH(){
     const cols = info.cols * 2;
     if(cols > 12){ toast('더 이상 나눌 수 없습니다.','err'); return; }
     info.grid.dataset.cols = cols;
+    delete info.grid.dataset.fr;                 // 칸 수가 바뀌면 너비 비율을 다시 계산
     info.grid.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
     info.list.forEach(c => {
       if(c === selCell) return;
@@ -3360,6 +3425,54 @@ function clearCell(){
   toast('격자 선택을 해제했습니다. 이제 본문에 사진이 들어갑니다.','ok');
 }
 
+/* 격자가 어긋났는지 검사하고 바로잡습니다.
+   (칸 개수가 줄 수와 맞지 않으면 화면이 뒤틀립니다) */
+function repairGrids(){
+  const ed = gi('cedit'); if(!ed) return 0;
+  let fixed = 0;
+  ed.querySelectorAll('.wg').forEach(g => {
+    const cols = parseInt(g.dataset.cols) || 1;
+
+    // 저장된 너비 비율의 개수가 칸 수와 다르면 초기화
+    if(g.dataset.fr){
+      const a = g.dataset.fr.split(',').map(Number);
+      if(a.length !== cols || a.some(v => !(v > 0))){
+        delete g.dataset.fr;
+        g.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+        fixed++;
+      }
+    }
+
+    // 한 칸이 차지하는 폭이 전체 칸 수보다 크면 줄입니다
+    const cells = [...g.querySelectorAll(':scope > .wc')];
+    cells.forEach(c => {
+      const sp = parseInt(c.dataset.span) || 1;
+      if(sp > cols){
+        if(cols > 1){ c.dataset.span = cols; c.style.gridColumn = 'span ' + cols; }
+        else { delete c.dataset.span; c.style.gridColumn = ''; }
+        fixed++;
+      }
+    });
+
+    // 마지막 줄이 덜 찼으면 빈 칸을 채워 모양을 맞춥니다
+    let used = 0;
+    cells.forEach(c => { used += parseInt(c.dataset.span) || 1; });
+    const rest = used % cols;
+    if(rest !== 0){
+      for(let i = rest; i < cols; i++){
+        const nc = document.createElement('div');
+        nc.className = 'wc'; nc.innerHTML = '<p><br></p>';
+        g.appendChild(nc);
+      }
+      fixed++;
+    }
+    // 칸이 하나도 없으면 격자 자체를 제거
+    if(!g.querySelector(':scope > .wc')){ g.remove(); fixed++; }
+  });
+  if(fixed){ bindGrid(); syncSrc(); }
+  return fixed;
+}
+
 /* 이미 연결된 요소 표시 — HTML에 저장되지 않도록 메모리에만 보관합니다.
    (예전에는 data-b 표시가 본문에 함께 저장돼, 다시 수정할 때 연결이 건너뛰어졌습니다) */
 const BOUND = new WeakSet();
@@ -3454,10 +3567,24 @@ function bindGrid(){
 /* 사진 크기 / 정렬 */
 function imgSize(sz){
   if(!selImg){ toast('먼저 사진을 클릭해서 선택해 주세요.','err'); return; }
+  const pct = ({s:'38%', m:'60%', l:'85%', f:'100%'})[sz] || '60%';
+  const name = ({s:'작게', m:'보통', l:'크게', f:'꽉'})[sz] || '보통';
   selImg.dataset.sz = sz;
-  selImg.style.width = ({s:'38%',m:'60%',l:'85%',f:'100%'})[sz] || '60%';
+  delete selImg.dataset.px;
+  selImg.style.width = pct;
   selImg.style.height = 'auto';
+  selImg.style.maxWidth = '100%';
   syncSrc();
+  // 실제 픽셀이 얼마가 됐는지 알려줍니다
+  setTimeout(() => {
+    const r = selImg.getBoundingClientRect();
+    const nw = selImg.naturalWidth || 0;
+    const p = nw ? Math.round(r.width / nw * 100) : 0;
+    toast(`${name} (${pct}) → ${Math.round(r.width)} × ${Math.round(r.height)}px`
+      + (p ? ` · 원본의 ${p}%` : ''), 'ok');
+    if(rzTarget === selImg) placeHandles();
+    else showHandles(selImg);
+  }, 30);
 }
 function imgAlign(al){
   if(!selImg){ toast('먼저 사진을 클릭해서 선택해 주세요.','err'); return; }
