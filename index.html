@@ -385,7 +385,9 @@ img{max-width:100%}
 .tts-c.main{background:var(--c1);border-color:var(--c1);color:#fff;font-size:.8rem}
 .tts-c.main:hover{background:var(--c2)}
 /* ── 웹진 한 페이지 보기 ── */
-.wz{display:grid;grid-template-columns:250px 1fr;gap:30px;align-items:start}
+/* 기사 영역을 넓게 — 좌우 여백을 줄입니다 */
+#articles.inner{max-width:1560px;padding:0 20px}
+.wz{display:grid;grid-template-columns:212px minmax(0,1fr);gap:22px;align-items:start}
 .wz-side{position:sticky;top:150px;display:flex;flex-direction:column;gap:12px}
 .wz-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r-l);
   padding:16px;box-shadow:0 1px 8px rgba(0,0,0,.04)}
@@ -427,7 +429,7 @@ img{max-width:100%}
 
 /* 기사 한 편 */
 .wz-art{background:var(--white);border:1px solid var(--line);border-radius:var(--r-l);
-  padding:26px 28px;margin-bottom:20px;box-shadow:0 1px 10px rgba(0,0,0,.04);
+  padding:22px 22px;margin-bottom:18px;box-shadow:0 1px 10px rgba(0,0,0,.04);
   scroll-margin-top:170px}
 .wz-art-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:11px}
 .wz-cat{border-radius:20px;padding:4px 13px;font-size:calc(.72rem*var(--fs));font-weight:800}
@@ -535,6 +537,9 @@ a.wz-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
 .wz-zoom-x{position:absolute;top:18px;right:20px;background:rgba(255,255,255,.2);
   border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:1.2rem;cursor:pointer}
 
+@media(max-width:1400px){
+  #articles.inner{max-width:100%;padding:0 16px}
+}
 @media(max-width:1100px){
   #wzList{grid-template-columns:minmax(0,1fr)}
   .wz-art.span-half{grid-column:1 / -1}

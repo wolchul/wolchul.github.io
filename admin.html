@@ -288,11 +288,11 @@ input,select,textarea{font-family:inherit}
 .rz-size.big{font-size:.86rem;padding:5px 13px;top:-34px;background:var(--navy)}
 
 /* 격자 눈금 */
-.cg-ruler span{position:absolute;top:-21px;text-align:center;font-size:.66rem;font-weight:800;
-  color:var(--sky);background:var(--sky-l);border-radius:4px;padding:1px 0;
-  border:1px solid var(--sky);box-sizing:border-box;overflow:hidden;white-space:nowrap}
-.cg-total{position:absolute;top:-21px;right:0;transform:translateY(-100%);
-  font-size:.66rem;font-weight:800;color:var(--text-s);white-space:nowrap}
+.cg-ruler span{position:absolute;top:3px;text-align:center;font-size:.64rem;font-weight:800;
+  color:#fff;background:rgba(45,136,181,.85);border-radius:0 0 4px 0;padding:1px 0;
+  box-sizing:border-box;overflow:hidden;white-space:nowrap;max-width:100%}
+.cg-total{position:absolute;bottom:3px;right:4px;font-size:.64rem;font-weight:800;
+  color:#fff;background:rgba(45,136,181,.85);border-radius:4px;padding:1px 6px;white-space:nowrap}
 .drag-tip{position:absolute;z-index:70;transform:translate(-50%,-100%);
   background:var(--navy);color:#fff;font-size:.78rem;font-weight:800;
   padding:5px 11px;border-radius:6px;white-space:nowrap;pointer-events:none;
@@ -1936,7 +1936,7 @@ function newArt(){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -1961,7 +1961,7 @@ function editArt(id){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -3430,6 +3430,18 @@ function clearCell(){
 function repairGrids(){
   const ed = gi('cedit'); if(!ed) return 0;
   let fixed = 0;
+
+  // 붙여넣기로 딸려온 칸 껍데기(.wc)가 격자 밖에 떠 있으면 벗겨냅니다
+  ed.querySelectorAll('.wc').forEach(el => {
+    if(!el.parentElement || !el.parentElement.classList.contains('wg')){
+      el.replaceWith(...el.childNodes); fixed++;
+    }
+  });
+  ed.querySelectorAll('.wg').forEach(g => {
+    if(!g.querySelector(':scope > .wc') && g.textContent.trim()){
+      g.replaceWith(...g.childNodes); fixed++;
+    }
+  });
   ed.querySelectorAll('.wg').forEach(g => {
     const cols = parseInt(g.dataset.cols) || 1;
 
@@ -3476,6 +3488,55 @@ function repairGrids(){
 /* 이미 연결된 요소 표시 — HTML에 저장되지 않도록 메모리에만 보관합니다.
    (예전에는 data-b 표시가 본문에 함께 저장돼, 다시 수정할 때 연결이 건너뛰어졌습니다) */
 const BOUND = new WeakSet();
+
+/* 붙여넣기 — 다른 칸에서 복사한 상자·서식이 딸려오지 않도록 정리합니다 */
+function bindPaste(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.pb) return;
+  ed.dataset.pb = '1';
+  ed.addEventListener('paste', e => {
+    const cb = e.clipboardData; if(!cb) return;
+    const html = cb.getData('text/html');
+    e.preventDefault();
+
+    if(!html){
+      // 그냥 글자만 붙여넣기
+      const t = cb.getData('text/plain') || '';
+      document.execCommand('insertHTML', false,
+        t.split(/\n/).map(x => '<p>' + x.replace(/[&<>]/g, c =>
+          ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</p>').join(''));
+      saveCaret(); syncSrc(); return;
+    }
+
+    // 격자·칸 껍데기를 벗기고 안의 내용만 남깁니다
+    const box = document.createElement('div');
+    box.innerHTML = html;
+    box.querySelectorAll('.wg, .wc').forEach(el => el.replaceWith(...el.childNodes));
+    box.querySelectorAll('[contenteditable],[draggable],[data-b],[data-watch],[data-new]')
+       .forEach(el => {
+         el.removeAttribute('contenteditable'); el.removeAttribute('draggable');
+         el.removeAttribute('data-b'); el.removeAttribute('data-watch'); el.removeAttribute('data-new');
+       });
+    box.querySelectorAll('*').forEach(el => {
+      el.classList.remove('sel','wc','wg','drop','drag-src','drop-t','img-loading');
+      if(!el.classList.length) el.removeAttribute('class');
+      const st = el.getAttribute('style') || '';
+      if(st){
+        // 배경·테두리·크기 같은 칸 서식은 걷어내고 글자 서식만 남깁니다
+        const keep = st.split(';').filter(r =>
+          /^\s*(font-size|font-weight|color|text-align|font-style|text-decoration)\s*:/i.test(r));
+        if(el.tagName === 'IMG'){
+          const w = /width\s*:\s*[^;]+/i.exec(st);
+          el.setAttribute('style', (w ? w[0] + ';' : '') + 'height:auto;max-width:100%');
+        } else if(keep.length) el.setAttribute('style', keep.join(';'));
+        else el.removeAttribute('style');
+      }
+    });
+    box.querySelectorAll('script,style,meta,link').forEach(el => el.remove());
+
+    document.execCommand('insertHTML', false, box.innerHTML);
+    bindGrid(); saveCaret(); syncSrc();
+  });
+}
 
 /* 편집창에서 커서가 움직일 때마다 위치를 기억합니다 */
 function bindCaret(){
