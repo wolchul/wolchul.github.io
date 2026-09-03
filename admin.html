@@ -276,6 +276,10 @@ input,select,textarea{font-family:inherit}
   padding:4px;text-align:center}
 /* 편집기 격자 */
 .ct-sep{display:inline-block;width:1px;height:18px;background:var(--border);margin:0 5px;vertical-align:middle}
+/* 투명 선 — 작성 화면에서만 빨간 점선으로 표시 (한글과 동일) */
+#cedit .wg.line-none{border:1px dashed #e03131 !important;background:transparent}
+#cedit .wg.line-none > .wc{border:1px dashed #e03131 !important}
+
 /* 표처럼 보이도록 — 같은 줄의 칸은 높이를 맞춥니다 */
 #cedit .wg{display:grid;gap:0;margin:16px 0;padding:0;align-items:stretch;
   grid-auto-rows:minmax(140px,auto);
@@ -283,6 +287,12 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc{border:1px solid #cfd8e0;padding:10px;background:#fff;
   transition:border-color .15s;overflow-wrap:anywhere;min-width:0;
   display:flex;flex-direction:column;justify-content:flex-start}
+#cedit .wg .wc[data-al="center"]{text-align:center}
+#cedit .wg .wc[data-al="right"]{text-align:right}
+#cedit .wg .wc[data-al="justify"]{text-align:justify}
+#cedit .wg .wc[data-al="center"] img{margin-left:auto;margin-right:auto}
+#cedit .wg .wc[data-al="right"] img{margin-left:auto;margin-right:0}
+#cedit .wg .wc[data-al="left"] img{margin-left:0;margin-right:auto}
 #cedit .wg .wc > *:first-child{margin-top:0}
 #cedit .wg .wc > *:last-child{margin-bottom:0}
 #cedit .wg .wc p:empty::before{content:'내용을 입력하세요';color:#c2cad2;font-size:.78rem}
@@ -562,11 +572,17 @@ input,select,textarea{font-family:inherit}
                   <button onclick="fmt('insertUnorderedList')" type="button">• 목록</button>
                   <button onclick="fmt('insertHorizontalRule')" type="button">구분선</button>
                   <span class="ct-sep"></span>
+                  <button onclick="alignText('Left')" type="button" title="왼쪽 정렬">≡◧</button>
+                  <button onclick="alignText('Center')" type="button" title="가운데 정렬">≡▣</button>
+                  <button onclick="alignText('Right')" type="button" title="오른쪽 정렬">≡◨</button>
+                  <button onclick="alignText('Full')" type="button" title="양쪽 맞춤">≡▤</button>
+                  <button onclick="cellVAlign()" type="button" title="칸 안에서 위/가운데/아래">⇅ 칸 세로</button>
+                  <span class="ct-sep"></span>
                   <button onclick="gridAsk()" type="button" title="격자(표) 넣기">▦ 격자 넣기</button>
                   <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
                   <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
                   <button onclick="colAdd()" type="button" title="가로 칸 하나 늘리기">＋칸</button>
-                  <button onclick="cellClear()" type="button" title="선택한 칸 내용 비우기">칸 비우기</button>
+                  <button onclick="cellClear()" type="button" title="선택한 칸 내용 비우기 (Ctrl+클릭으로 여러 칸 선택)">칸 비우기</button>
                   <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥ 칸 넓히기</button>
                   <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤ 좁히기</button>
                   <button onclick="gridDel()" type="button" title="격자 전체 삭제">▨ 격자 삭제</button>
@@ -574,6 +590,7 @@ input,select,textarea{font-family:inherit}
                   <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
                   <button onclick="bgPick('grid')" type="button" title="격자 전체 배경색">🎨 표 배경</button>
                   <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
+                  <button onclick="lineDlg()" type="button" title="표 선 모양·굵기·색상">┼ 선 모양</button>
                   <span class="ct-sep"></span>
                   <button onclick="imgSize('s')" type="button" title="선택한 사진 작게">🖼 작게</button>
                   <button onclick="imgSize('m')" type="button">보통</button>
@@ -877,6 +894,43 @@ input,select,textarea{font-family:inherit}
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
       <button class="btn bd bsm" onclick="deleteSp()">삭제</button>
       <button class="btn bo bsm" onclick="closeSpDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 표 선 설정 -->
+<div class="conf" id="lineDlgBox">
+  <div class="conf-box" style="max-width:440px">
+    <h3>┼ 표 선 모양</h3>
+    <p style="margin-bottom:14px">선택한 격자의 테두리를 정합니다.</p>
+
+    <div class="sf" style="margin-bottom:12px">
+      <label>굵기</label>
+      <div style="display:flex;gap:7px;flex-wrap:wrap" id="lwRow"></div>
+    </div>
+
+    <div class="sf" style="margin-bottom:12px">
+      <label>모양</label>
+      <div style="display:flex;gap:7px;flex-wrap:wrap" id="lsRow"></div>
+    </div>
+
+    <div class="sf" style="margin-bottom:14px">
+      <label>색상</label>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="lcRow" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <input type="color" id="lcCustom" value="#333333"
+          style="width:42px;height:32px;border:none;background:none;cursor:pointer;padding:0">
+      </div>
+    </div>
+
+    <div style="background:var(--sky-l);border-radius:7px;padding:10px 13px;font-size:.74rem;color:var(--navy);line-height:1.7">
+      💡 <strong>투명</strong>을 고르면 웹진 화면에서는 선이 보이지 않고,
+      글 작성 화면에서만 <span style="color:#e03131;font-weight:800">빨간 점선</span>으로 표시됩니다.
+      (한글의 투명 선과 같습니다)
+    </div>
+
+    <div class="ca">
+      <button class="btn bo" onclick="gi('lineDlgBox').classList.remove('open')">닫기</button>
     </div>
   </div>
 </div>
@@ -2061,12 +2115,7 @@ function colAdd(){
   toast('가로 '+cols+'칸으로 늘렸습니다.','ok');
 }
 
-function cellClear(){
-  if(!selCell){ toast('비울 칸을 먼저 클릭해 주세요.','err'); return; }
-  selCell.innerHTML = '<p><br></p>';
-  selImg = null; syncSrc();
-  toast('칸을 비웠습니다.','ok');
-}
+function cellClear(){ cellsClear(); }
 
 /* 칸 넓히기 / 좁히기 (한글의 셀 병합처럼) */
 function cellMerge(delta){
@@ -2275,6 +2324,143 @@ function phPick(path){
 }
 
 
+
+
+/* ═══════ 글 정렬 ═══════
+   격자 칸 안이면 그 칸에만, 밖이면 본문 문단에 적용됩니다. */
+function alignText(dir){
+  const ed = gi('cedit'); if(!ed) return;
+  const map = { Left:'left', Center:'center', Right:'right', Full:'justify' };
+  const css = map[dir] || 'left';
+  const list = cellsSelected();
+
+  if(list.length){
+    // 선택한 칸 전체에 적용
+    list.forEach(c => { c.style.textAlign = css; c.dataset.al = css; });
+    syncSrc();
+    toast(list.length > 1 ? (list.length + '개 칸을 ' + alignName(css) + '했습니다.')
+                          : ('칸을 ' + alignName(css) + '했습니다.'), 'ok');
+    return;
+  }
+  // 일반 본문 — 커서가 있는 문단에 적용
+  restoreCaret();
+  document.execCommand('justify' + dir, false, null);
+  saveCaret(); syncSrc();
+  toast(alignName(css) + '했습니다.','ok');
+}
+function alignName(css){
+  return { left:'왼쪽 정렬', center:'가운데 정렬', right:'오른쪽 정렬', justify:'양쪽 맞춤' }[css] || '정렬';
+}
+
+/* 칸 안에서 위 / 가운데 / 아래 (세로 위치) */
+function cellVAlign(){
+  const list = cellsSelected();
+  if(!list.length){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
+  const steps = ['flex-start','center','flex-end'];
+  const names = ['위쪽', '가운데', '아래쪽'];
+  const cur = list[0].dataset.va || 'flex-start';
+  const i = (steps.indexOf(cur) + 1) % steps.length;
+  list.forEach(c => { c.style.justifyContent = steps[i]; c.dataset.va = steps[i]; });
+  syncSrc();
+  toast('칸 세로 위치: ' + names[i], 'ok');
+}
+
+/* ═══════ 표 선 모양 (굵기·모양·색상·투명) ═══════ */
+const LW = [['0','없음'],['1px','얇게'],['2px','보통'],['3px','굵게']];
+const LS = [['solid','실선'],['dashed','파선'],['dotted','점선'],['double','두 줄']];
+const LC = ['#333333','#9fb0be','#1b4332','#40916c','#2d88b5','#c05600','#a04752','#ffffff'];
+
+function lineDlg(){
+  const g = selCell ? selCell.closest('.wg') : null;
+  if(!g){ toast('격자의 칸을 먼저 클릭해 주세요.','err'); return; }
+  const mk = (arr, fn) => arr.map(([v,n]) =>
+    `<button class="btn bo bsm" onclick="${fn}('${v}')">${n}</button>`).join('');
+  gi('lwRow').innerHTML = mk(LW,'setLineW')
+    + `<button class="btn bo bsm" onclick="setLineTransparent()"
+        style="border-color:#e03131;color:#e03131;font-weight:800">투명</button>`;
+  gi('lsRow').innerHTML = mk(LS,'setLineS');
+  gi('lcRow').innerHTML = LC.map(c =>
+    `<button onclick="setLineC('${c}')" title="${c}"
+      style="width:30px;height:30px;border:1.5px solid #d0d7de;border-radius:5px;background:${c};cursor:pointer"></button>`
+  ).join('');
+  const cu = gi('lcCustom');
+  if(cu && !cu.dataset.b){ cu.dataset.b='1'; cu.addEventListener('input', () => setLineC(cu.value)); }
+  gi('lineDlgBox').classList.add('open');
+}
+
+function curGrid(){ return selCell ? selCell.closest('.wg') : null; }
+
+/* 격자에 저장된 선 설정을 실제 스타일로 적용 */
+function applyLine(g){
+  if(!g) return;
+  const tp = g.dataset.line === 'none';
+  const w  = g.dataset.lw || '1px';
+  const st = g.dataset.ls || 'solid';
+  const c  = g.dataset.lc || '#cfd8e0';
+
+  g.classList.toggle('line-none', tp);
+  const border = tp ? '' : (w === '0' ? 'none' : `${w} ${st} ${c}`);
+  g.style.border = tp ? '' : (border === 'none' ? 'none' : border);
+  g.querySelectorAll(':scope > .wc').forEach(c2 => {
+    c2.style.border = tp ? '' : (border === 'none' ? 'none' : border);
+  });
+  syncSrc();
+}
+
+function setLineW(v){
+  const g = curGrid(); if(!g) return;
+  delete g.dataset.line; g.dataset.lw = v; applyLine(g);
+  toast('선 굵기를 바꿨습니다.','ok');
+}
+function setLineS(v){
+  const g = curGrid(); if(!g) return;
+  delete g.dataset.line; g.dataset.ls = v; applyLine(g);
+  toast('선 모양을 바꿨습니다.','ok');
+}
+function setLineC(v){
+  const g = curGrid(); if(!g) return;
+  delete g.dataset.line; g.dataset.lc = v; applyLine(g);
+}
+function setLineTransparent(){
+  const g = curGrid(); if(!g) return;
+  g.dataset.line = 'none'; applyLine(g);
+  gi('lineDlgBox').classList.remove('open');
+  toast('투명 선으로 바꿨습니다. 웹진에서는 보이지 않습니다.','ok');
+}
+
+/* ═══════ 여러 칸 선택 ═══════
+   Ctrl(또는 Shift)을 누른 채 칸을 클릭하면 여러 칸을 함께 고를 수 있습니다. */
+let multiCells = [];
+
+function cellsSelected(){
+  return multiCells.length ? multiCells.filter(c => document.body.contains(c))
+                           : (selCell ? [selCell] : []);
+}
+function clearMulti(){
+  multiCells.forEach(c => c.classList.remove('sel'));
+  multiCells = [];
+}
+
+/* 선택한 칸들을 한꺼번에 비우기 */
+function cellsClear(){
+  const list = cellsSelected();
+  if(!list.length){ toast('비울 칸을 먼저 클릭해 주세요.','err'); return; }
+  if(list.length > 1 && !confirm(list.length + '개 칸의 내용을 지울까요?')) return;
+  list.forEach(c => c.innerHTML = '<p><br></p>');
+  selImg = null; syncSrc();
+  toast(list.length + '개 칸을 비웠습니다.','ok');
+}
+
+/* 선택한 칸들에 배경색 한꺼번에 적용 */
+function bgApplyMulti(color){
+  const list = cellsSelected();
+  list.forEach(c => {
+    if(color){ c.style.background = color; c.dataset.bg = color; }
+    else { c.style.background = ''; delete c.dataset.bg; }
+  });
+  syncSrc();
+}
+
 /* ═══════ 칸·표 배경색 / 여백 ═══════ */
 const BG_COLORS = [
   '#f0faf2','#d8f3dc','#e8f4fb','#d6ebf7','#fff3e0','#ffe8d6',
@@ -2300,16 +2486,12 @@ function bgPick(mode){
 }
 
 function bgApply(color){
-  const target = (bgMode === 'grid')
-    ? (selCell ? selCell.closest('.wg') : null)
-    : selCell;
-  if(!target) return;
-  if(color){
-    target.style.background = color;
-    target.dataset.bg = color;
+  if(bgMode === 'grid'){
+    const g = curGrid(); if(!g) return;
+    if(color){ g.style.background = color; g.dataset.bg = color; }
+    else { g.style.background = ''; delete g.dataset.bg; }
   }else{
-    target.style.background = '';
-    delete target.dataset.bg;
+    bgApplyMulti(color);
   }
   gi('bgDlg').classList.remove('open');
   syncSrc();
@@ -2359,9 +2541,24 @@ function bindGrid(){
     c.setAttribute('contenteditable','true');
     c.removeAttribute('data-b');          // 예전 파일에 남은 표시 제거
     if(BOUND.has(c)) return; BOUND.add(c);
-    c.addEventListener('click', () => {
+    c.addEventListener('click', e => {
+      if(e.ctrlKey || e.metaKey || e.shiftKey){
+        // 여러 칸 함께 고르기
+        if(selCell && !multiCells.includes(selCell)) multiCells.push(selCell);
+        if(multiCells.includes(c)){
+          multiCells = multiCells.filter(x => x !== c); c.classList.remove('sel');
+        }else{
+          multiCells.push(c); c.classList.add('sel');
+        }
+        selCell = c;
+        const st = gi('imgSel');
+        if(st) st.textContent = multiCells.length > 1 ? ('▦ ' + multiCells.length + '개 칸 선택됨') : '';
+        return;
+      }
+      clearMulti();
       ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
       c.classList.add('sel'); selCell = c;
+      const st = gi('imgSel'); if(st) st.textContent = '';
       if(!c.querySelector('p,div,img')) c.innerHTML = '<p><br></p>';
       setTimeout(()=>{ saveCaret(); showInsertHint(); }, 0);
     });
