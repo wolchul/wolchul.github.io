@@ -276,6 +276,14 @@ input,select,textarea{font-family:inherit}
   padding:4px;text-align:center}
 /* 편집기 격자 */
 .ct-sep{display:inline-block;width:1px;height:18px;background:var(--border);margin:0 5px;vertical-align:middle}
+/* 칸 선택 모드 */
+#cedit.selmode .wc{cursor:cell;user-select:none}
+#cedit.selmode .wc.sel{outline:2px solid var(--sky);outline-offset:-2px;background:#eaf4fb !important}
+#cedit.selmode .wc *{pointer-events:none}
+#cedit.selmode .wc.drag-src{opacity:.4}
+#cedit.selmode .wc.drop-t{outline:2px dashed var(--navy);outline-offset:-2px;background:#e3f0f8 !important}
+#selModeBtn.on{background:var(--sky) !important;color:#fff !important;border-color:var(--sky) !important}
+
 /* 투명 선 — 작성 화면에서만 빨간 점선으로 표시 (한글과 동일) */
 #cedit .wg.line-none{border:1px dashed #e03131 !important;background:transparent}
 #cedit .wg.line-none > .wc{border:1px dashed #e03131 !important}
@@ -299,7 +307,8 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc:hover{border-color:var(--sky)}
 #cedit .wg .wc.sel{border:2px solid var(--sky);background:var(--sky-l)}
 #cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
-#cedit img{cursor:pointer;max-width:100%;height:auto;border-radius:6px}
+#cedit img{cursor:grab;max-width:100%;height:auto;border-radius:6px}
+#cedit img:active{cursor:grabbing}
 #cedit img.sel{outline:3px solid var(--sky);outline-offset:2px}
 #cedit img[data-sz="s"]{width:38%} #cedit img[data-sz="m"]{width:60%}
 #cedit img[data-sz="l"]{width:85%} #cedit img[data-sz="f"]{width:100%}
@@ -578,6 +587,8 @@ input,select,textarea{font-family:inherit}
                   <button onclick="alignText('Full')" type="button" title="양쪽 맞춤">≡▤</button>
                   <button onclick="cellVAlign()" type="button" title="칸 안에서 위/가운데/아래">⇅ 칸 세로</button>
                   <span class="ct-sep"></span>
+                  <button onclick="toggleSelMode()" type="button" id="selModeBtn"
+                    title="켜면 마우스로 끌어서 여러 칸을 고르고, 칸 내용을 옮길 수 있습니다">▤ 칸 선택</button>
                   <button onclick="gridAsk()" type="button" title="격자(표) 넣기">▦ 격자 넣기</button>
                   <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
                   <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
@@ -1830,7 +1841,7 @@ function newArt(){
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
-  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); showInsertHint(); }, 100);
+  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint(); }, 100);
 }
 function editArt(id){
   const a=ARTS.find(x=>x.id==id||x.id===id||x._firebaseId===id); if(!a)return;
@@ -1850,7 +1861,7 @@ function editArt(id){
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
-  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); showInsertHint(); }, 100);
+  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint(); }, 100);
 }
 
 /* ★ 드래그 앤 드롭 사진 업로드 */
@@ -1937,6 +1948,7 @@ function insertImg(){ insertImgUrl(); }
 
 async function saveArt(){
   const title=gi('etti').value.trim(), summary=gi('esum').value.trim();
+  if(!srcMode) normalizeGrids();
   const cont=cleanHTML(srcMode?gi('csrc').value:gi('cedit').innerHTML).trim();
   if(!title){ toast('제목을 입력해주세요.','err'); return; }
   if(!summary){ toast('요약을 입력해주세요.','err'); return; }
@@ -2514,6 +2526,148 @@ function altSave(){
   toast('저장했습니다. 이제 음성으로 읽어줍니다.','ok');
 }
 
+
+
+/* ═══════ 칸 선택 모드 ═══════
+   켜면 마우스로 끌어서 여러 칸을 한 번에 고르고,
+   칸 내용을 통째로 다른 칸으로 옮길 수 있습니다. */
+let selMode = false, dragStart = null, dragging = false, moveSrc = null;
+
+function toggleSelMode(){
+  const ed = gi('cedit'); if(!ed) return;
+  selMode = !selMode;
+  ed.classList.toggle('selmode', selMode);
+  gi('selModeBtn').classList.toggle('on', selMode);
+  ed.querySelectorAll('.wg .wc').forEach(c =>
+    c.setAttribute('contenteditable', selMode ? 'false' : 'true'));
+  if(!selMode) clearMulti();
+  toast(selMode
+    ? '칸 선택 모드 — 끌어서 여러 칸을 고르고, 칸을 끌어 내용을 옮길 수 있습니다.'
+    : '글 편집 모드로 돌아왔습니다.', 'ok');
+}
+
+/* 격자 안에서 두 칸 사이의 모든 칸을 구합니다 (사각형 범위) */
+function cellsBetween(a, b){
+  const g = a.closest('.wg');
+  if(!g || b.closest('.wg') !== g) return [a];
+  const cols = parseInt(g.dataset.cols) || 1;
+  const list = [...g.querySelectorAll(':scope > .wc')];
+
+  // 각 칸의 (행, 열) 위치 계산
+  const pos = new Map();
+  let used = 0, row = 0;
+  list.forEach(c => {
+    const sp = parseInt(c.dataset.span) || 1;
+    pos.set(c, { r: row, c1: used, c2: used + sp - 1 });
+    used += sp;
+    if(used >= cols){ used = 0; row++; }
+  });
+  const pa = pos.get(a), pb = pos.get(b);
+  if(!pa || !pb) return [a];
+  const r1 = Math.min(pa.r, pb.r), r2 = Math.max(pa.r, pb.r);
+  const c1 = Math.min(pa.c1, pb.c1), c2 = Math.max(pa.c2, pb.c2);
+  return list.filter(c => {
+    const p = pos.get(c);
+    return p.r >= r1 && p.r <= r2 && p.c2 >= c1 && p.c1 <= c2;
+  });
+}
+
+function setMulti(list){
+  const ed = gi('cedit');
+  ed.querySelectorAll('.wc').forEach(x => x.classList.remove('sel'));
+  multiCells = list.slice();
+  multiCells.forEach(c => c.classList.add('sel'));
+  selCell = list[list.length - 1] || null;
+  const st = gi('imgSel');
+  if(st) st.textContent = list.length > 1 ? ('▦ ' + list.length + '개 칸 선택됨') : '';
+}
+
+/* 마우스로 끌어서 선택 · 칸 내용 옮기기 */
+function bindSelMode(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.sm) return;
+  ed.dataset.sm = '1';
+
+  ed.addEventListener('mousedown', e => {
+    if(!selMode) return;
+    const c = e.target.closest('.wc'); if(!c) return;
+    e.preventDefault();
+    if(e.altKey){ moveSrc = c; c.classList.add('drag-src'); return; }  // Alt = 내용 옮기기
+    dragStart = c; dragging = true;
+    setMulti([c]);
+  });
+
+  ed.addEventListener('mousemove', e => {
+    const c = e.target.closest('.wc');
+    if(moveSrc){
+      ed.querySelectorAll('.wc').forEach(x => x.classList.remove('drop-t'));
+      if(c && c !== moveSrc) c.classList.add('drop-t');
+      return;
+    }
+    if(!selMode || !dragging || !dragStart || !c) return;
+    setMulti(cellsBetween(dragStart, c));
+  });
+
+  document.addEventListener('mouseup', e => {
+    if(moveSrc){
+      const c = e.target.closest && e.target.closest('.wc');
+      ed.querySelectorAll('.wc').forEach(x => x.classList.remove('drop-t'));
+      moveSrc.classList.remove('drag-src');
+      if(c && c !== moveSrc){
+        const tmp = c.innerHTML;
+        c.innerHTML = moveSrc.innerHTML;      // 서로 바꿔치기
+        moveSrc.innerHTML = tmp || '<p><br></p>';
+        bindGrid(); syncSrc();
+        toast('칸 내용을 옮겼습니다.','ok');
+      }
+      moveSrc = null; return;
+    }
+    dragging = false; dragStart = null;
+  });
+}
+
+/* ═══════ 저장 전 격자 굳히기 ═══════
+   격자 모양을 기사 안에 직접 새겨 넣습니다.
+   그래야 나중에 사이트 디자인이 바뀌어도 예전 기사가 흐트러지지 않습니다. */
+function normalizeGrids(){
+  const ed = gi('cedit'); if(!ed) return;
+  ed.querySelectorAll('.wg').forEach(g => {
+    const cols = parseInt(g.dataset.cols) || 2;
+    const tp   = g.dataset.line === 'none';
+    const w    = g.dataset.lw || '1px';
+    const st   = g.dataset.ls || 'solid';
+    const c    = g.dataset.lc || '#e5e7eb';
+    const bd   = (tp || w === '0') ? 'none' : `${w} ${st} ${c}`;
+
+    const gs = [
+      'display:grid',
+      `grid-template-columns:repeat(${cols},minmax(0,1fr))`,
+      'align-items:stretch',
+      tp ? 'gap:14px' : 'gap:0',
+      'margin:20px 0',
+      bd === 'none' ? '' : `border:${bd}`,
+      'border-radius:8px',
+      g.dataset.bg ? `background:${g.dataset.bg}` : ''
+    ].filter(Boolean).join(';');
+    g.setAttribute('style', gs);
+
+    g.querySelectorAll(':scope > .wc').forEach(cell => {
+      const sp = parseInt(cell.dataset.span) || 1;
+      const cs = [
+        'min-width:0',
+        'display:flex',
+        'flex-direction:column',
+        `justify-content:${cell.dataset.va || 'flex-start'}`,
+        `padding:${cell.dataset.pad || '16px'}`,
+        bd === 'none' ? '' : `border:${bd}`,
+        sp > 1 ? `grid-column:span ${sp}` : '',
+        cell.dataset.bg ? `background:${cell.dataset.bg}` : '',
+        cell.dataset.al ? `text-align:${cell.dataset.al}` : ''
+      ].filter(Boolean).join(';');
+      cell.setAttribute('style', cs);
+    });
+  });
+}
+
 /* ═══════ 칸 나누기 / 합치기 ═══════ */
 
 /* 선택한 칸을 좌우 둘로 나눕니다 */
@@ -2820,7 +2974,12 @@ function bindGrid(){
     c.removeAttribute('data-b');          // 예전 파일에 남은 표시 제거
     if(BOUND.has(c)) return; BOUND.add(c);
     c.addEventListener('click', e => {
-      if(e.ctrlKey || e.metaKey || e.shiftKey){
+      if(e.shiftKey && selCell && selCell.closest('.wg') === c.closest('.wg')){
+        // Shift+클릭 — 이전에 고른 칸부터 여기까지 한 번에
+        setMulti(cellsBetween(selCell, c));
+        return;
+      }
+      if(e.ctrlKey || e.metaKey){
         // 여러 칸 함께 고르기
         if(selCell && !multiCells.includes(selCell)) multiCells.push(selCell);
         if(multiCells.includes(c)){
@@ -2872,7 +3031,12 @@ function bindGrid(){
     };
     im.addEventListener('mousedown', pick);   // 클릭이 편집기에 먹히지 않도록
     im.addEventListener('click', pick);
-    im.addEventListener('dragstart', () => { selImg = im; });
+    im.addEventListener('dragstart', ev => {
+      selImg = im;
+      im.style.opacity = '.4';
+      try{ ev.dataTransfer.setData('text/plain','img'); ev.dataTransfer.effectAllowed='move'; }catch{}
+    });
+    im.addEventListener('dragend', () => { im.style.opacity = ''; });
   });
 }
 
