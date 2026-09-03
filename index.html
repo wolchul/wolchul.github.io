@@ -479,12 +479,15 @@ img{max-width:100%}
 .wz-tts-s{font-size:calc(.73rem*var(--fs));color:var(--ink-s)}
 
 /* 사진 크게 보기 */
-.wz-zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:900;
+.wz-zoom{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9998;
   display:none;align-items:center;justify-content:center;padding:24px;
   overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pinch-zoom}
 .wz-zoom.open{display:flex}
-.wz-zoom img{max-width:min(880px,94vw);max-height:86vh;width:auto;height:auto;
-  border-radius:var(--r);box-shadow:0 12px 50px rgba(0,0,0,.5);cursor:zoom-out}
+.wz-zoom img{max-width:min(900px,94vw);max-height:86vh;width:auto;height:auto;
+  border-radius:var(--r);box-shadow:0 12px 50px rgba(0,0,0,.55);cursor:zoom-out;
+  background:#fff}
+.wz-zoom.open img{animation:zoomIn .18s ease}
+@keyframes zoomIn{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
 .wz-zoom-cap{position:absolute;bottom:20px;left:0;right:0;text-align:center;
   color:rgba(255,255,255,.8);font-size:.78rem}
 .wz-zoom-x{position:absolute;top:18px;right:20px;background:rgba(255,255,255,.2);
@@ -795,12 +798,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 
 <!-- 모달 -->
 <div class="mov" id="movOv" onclick="if(event.target===this)closeModal()" role="dialog" aria-modal="true" aria-labelledby="mTitle">
-  <div class="wz-zoom" id="wzZoom" onclick="closeZoom()">
-  <button class="wz-zoom-x" onclick="closeZoom()" aria-label="닫기">✕</button>
-  <img id="wzZoomImg" src="" alt="" onclick="event.stopPropagation()">
-  <div class="wz-zoom-cap">사진을 두 손가락으로 벌리면 더 크게 볼 수 있습니다 · 바깥을 누르면 닫힘</div>
-</div>
-
 <div class="modal">
     <div class="m-top">
       <span class="m-vol" id="mVol">VOL.3 (2026년 상반기)</span>
@@ -847,6 +844,13 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 </div>
 
 <!-- 푸터 -->
+<!-- 사진 크게 보기 -->
+<div class="wz-zoom" id="wzZoom" onclick="closeZoom()">
+  <button class="wz-zoom-x" onclick="closeZoom()" aria-label="닫기">✕</button>
+  <img id="wzZoomImg" src="" alt="" onclick="event.stopPropagation()">
+  <div class="wz-zoom-cap">바깥을 누르거나 ESC를 누르면 닫힙니다</div>
+</div>
+
 <footer>
   <div class="ft-in">
     <div>
@@ -1169,7 +1173,10 @@ function openZoom(src){
   const z = document.getElementById('wzZoom');
   const im = document.getElementById('wzZoomImg');
   if(!z || !im) return;
-  im.src = src; z.classList.add('open');
+  // 다른 상자 안에 갇혀 가려지지 않도록 화면 맨 바깥으로 옮깁니다
+  if(z.parentElement !== document.body) document.body.appendChild(z);
+  im.src = src;
+  z.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 function closeZoom(){
