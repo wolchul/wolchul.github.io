@@ -276,6 +276,24 @@ input,select,textarea{font-family:inherit}
   padding:4px;text-align:center}
 /* 편집기 격자 */
 .ct-sep{display:inline-block;width:1px;height:18px;background:var(--border);margin:0 5px;vertical-align:middle}
+/* 사진 크기 조절 손잡이 */
+.rz-box{position:absolute;pointer-events:none;z-index:60;outline:2px solid var(--sky);outline-offset:1px}
+.rz-h{position:absolute;width:13px;height:13px;background:var(--sky);border:2px solid #fff;
+  border-radius:3px;pointer-events:auto;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.rz-e {right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+.rz-s {bottom:-7px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+.rz-se{right:-7px;bottom:-7px;cursor:nwse-resize;border-radius:50%}
+.rz-size{position:absolute;top:-24px;left:0;background:var(--sky);color:#fff;
+  font-size:.68rem;font-weight:800;padding:2px 7px;border-radius:4px;white-space:nowrap}
+
+/* 격자 세로선 끌어서 칸 너비 조절 */
+.cg-bar{position:absolute;z-index:55;pointer-events:none}
+.cg-h{position:absolute;top:0;bottom:0;width:9px;margin-left:-4px;cursor:col-resize;
+  pointer-events:auto;background:transparent}
+.cg-h::after{content:'';position:absolute;left:3px;top:0;bottom:0;width:3px;background:transparent;
+  border-radius:2px;transition:background .15s}
+.cg-h:hover::after,.cg-h.on::after{background:var(--sky)}
+
 /* 칸 선택 모드 */
 #cedit.selmode .wc{cursor:cell;user-select:none}
 #cedit.selmode .wc.sel{outline:2px solid var(--sky);outline-offset:-2px;background:#eaf4fb !important}
@@ -615,8 +633,24 @@ input,select,textarea{font-family:inherit}
                   <button onclick="imgAlign('left')" type="button" title="왼쪽 정렬">◧</button>
                   <button onclick="imgAlign('center')" type="button" title="가운데">▣</button>
                   <button onclick="imgAlign('right')" type="button" title="오른쪽">◨</button>
+                  <button onclick="imgSizeDlg()" type="button" title="사진 크기를 숫자로 지정">📐 크기 입력</button>
                   <button onclick="imgAlt()" type="button" title="사진 속 글자를 입력하면 음성으로 읽어줍니다"
                     style="border-color:var(--gold);color:var(--gold);font-weight:800">🔊 사진 글자</button>
+                  <span class="ct-sep"></span>
+                  <select onchange="setFontSize(this.value);this.selectedIndex=0"
+                    style="border:1px solid var(--border);border-radius:5px;padding:3px 6px;
+                    font-size:.73rem;font-weight:700;color:var(--text-m);background:var(--white)">
+                    <option value="">글자 크기</option>
+                    <option value="11">11px 아주 작게</option>
+                    <option value="13">13px 작게</option>
+                    <option value="15">15px 보통</option>
+                    <option value="17">17px 조금 크게</option>
+                    <option value="20">20px 크게</option>
+                    <option value="24">24px 아주 크게</option>
+                    <option value="30">30px 제목급</option>
+                  </select>
+                  <button onclick="fontStep(1)" type="button" title="글자 키우기">A＋</button>
+                  <button onclick="fontStep(-1)" type="button" title="글자 줄이기">A－</button>
                   <span class="ct-sep"></span>
                   <button onclick="toggleSrc()" type="button" id="srcBtn">HTML</button>
                 </div>
@@ -922,6 +956,41 @@ input,select,textarea{font-family:inherit}
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
       <button class="btn bd bsm" onclick="deleteSp()">삭제</button>
       <button class="btn bo bsm" onclick="closeSpDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 사진 크기 입력 -->
+<div class="conf" id="imgSizeDlg">
+  <div class="conf-box" style="max-width:420px">
+    <h3>📐 사진 크기</h3>
+    <p style="margin-bottom:13px">숫자를 입력하거나, 사진 모서리를 끌어서 조절할 수도 있습니다.</p>
+    <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:10px">
+      <div style="text-align:center">
+        <input type="number" id="iszW" min="20" style="width:92px;text-align:center;font-weight:800;padding:8px">
+        <div style="font-size:.71rem;color:var(--text-s);margin-top:4px">가로 (px)</div>
+      </div>
+      <div style="font-size:1.1rem;color:var(--text-s);padding-bottom:20px">×</div>
+      <div style="text-align:center">
+        <input type="number" id="iszH" min="20" style="width:92px;text-align:center;font-weight:800;padding:8px">
+        <div style="font-size:.71rem;color:var(--text-s);margin-top:4px">세로 (px)</div>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:7px;justify-content:center;font-size:.79rem;
+      font-weight:700;color:var(--text);margin-bottom:12px;cursor:pointer">
+      <input type="checkbox" id="iszLock" checked style="width:16px;height:16px;accent-color:var(--sky)">
+      비율 유지 (한쪽만 바꿔도 자동 계산)
+    </label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:6px">
+      <button class="btn bo bsm" onclick="iszPreset(0.25)">25%</button>
+      <button class="btn bo bsm" onclick="iszPreset(0.5)">50%</button>
+      <button class="btn bo bsm" onclick="iszPreset(0.75)">75%</button>
+      <button class="btn bo bsm" onclick="iszPreset(1)">원본</button>
+      <button class="btn bo bsm" onclick="iszFull()">칸에 꽉</button>
+    </div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('imgSizeDlg').classList.remove('open')">취소</button>
+      <button class="btn bs" onclick="iszApply()">적용</button>
     </div>
   </div>
 </div>
@@ -1967,6 +2036,7 @@ function insertImg(){ insertImgUrl(); }
 
 async function saveArt(){
   const title=gi('etti').value.trim(), summary=gi('esum').value.trim();
+  hideHandles(); hideColBars();
   if(!srcMode) normalizeGrids();
   const cont=cleanHTML(srcMode?gi('csrc').value:gi('cedit').innerHTML).trim();
   if(!title){ toast('제목을 입력해주세요.','err'); return; }
@@ -2527,6 +2597,239 @@ function phPick(path){
 
 
 
+
+
+/* ═══════ 격자 세로선을 끌어 칸 너비 조절 ═══════ */
+let cgBar = null, cgGrid = null;
+
+function showColBars(g){
+  hideColBars();
+  if(!g) return;
+  cgGrid = g;
+  const cols = parseInt(g.dataset.cols) || 1;
+  if(cols < 2) return;
+
+  const bar = document.createElement('div');
+  bar.className = 'cg-bar';
+  document.body.appendChild(bar);
+  cgBar = bar;
+
+  for(let i = 1; i < cols; i++){
+    const h = document.createElement('div');
+    h.className = 'cg-h'; h.dataset.i = i;
+    bar.appendChild(h);
+    h.addEventListener('mousedown', ev => {
+      ev.preventDefault(); ev.stopPropagation();
+      h.classList.add('on');
+      const rect = g.getBoundingClientRect();
+      const start = ev.clientX;
+      const base = curFrs(g, cols);
+
+      const move = e2 => {
+        const dx = e2.clientX - start;
+        const unit = rect.width / base.reduce((a,b)=>a+b, 0);
+        const d = dx / unit;
+        const fr = base.slice();
+        fr[i-1] = Math.max(0.3, base[i-1] + d);
+        fr[i]   = Math.max(0.3, base[i]   - d);
+        g.style.gridTemplateColumns = fr.map(v => v.toFixed(2) + 'fr').join(' ');
+        g.dataset.fr = fr.map(v => v.toFixed(2)).join(',');
+        placeColBars();
+      };
+      const up = () => {
+        h.classList.remove('on');
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        syncSrc();
+        toast('칸 너비를 조절했습니다.','ok');
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+  }
+  placeColBars();
+}
+
+function curFrs(g, cols){
+  if(g.dataset.fr){
+    const a = g.dataset.fr.split(',').map(Number);
+    if(a.length === cols && a.every(v => v > 0)) return a;
+  }
+  return Array(cols).fill(1);
+}
+
+function placeColBars(){
+  if(!cgBar || !cgGrid || !document.body.contains(cgGrid)) return hideColBars();
+  const r = cgGrid.getBoundingClientRect();
+  cgBar.style.left = (r.left + window.scrollX) + 'px';
+  cgBar.style.top = (r.top + window.scrollY) + 'px';
+  cgBar.style.width = r.width + 'px';
+  cgBar.style.height = r.height + 'px';
+  const cols = parseInt(cgGrid.dataset.cols) || 1;
+  const fr = curFrs(cgGrid, cols);
+  const total = fr.reduce((a,b)=>a+b, 0);
+  let acc = 0;
+  cgBar.querySelectorAll('.cg-h').forEach((h, n) => {
+    acc += fr[n];
+    h.style.left = (acc / total * r.width) + 'px';
+  });
+}
+
+function hideColBars(){
+  if(cgBar){ cgBar.remove(); cgBar = null; cgGrid = null; }
+}
+window.addEventListener('scroll', placeColBars, true);
+window.addEventListener('resize', placeColBars);
+
+/* ═══════ 사진 크기 — 숫자 입력 ═══════ */
+function imgSizeDlg(){
+  if(!selImg){ toast('먼저 사진을 클릭해서 선택해 주세요.','err'); return; }
+  gi('iszW').value = Math.round(selImg.getBoundingClientRect().width);
+  gi('iszH').value = Math.round(selImg.getBoundingClientRect().height);
+  const w = gi('iszW'), h = gi('iszH');
+  if(!w.dataset.b){
+    w.dataset.b = '1';
+    w.addEventListener('input', () => {
+      if(!gi('iszLock').checked || !selImg) return;
+      const r = selImg.naturalHeight / selImg.naturalWidth;
+      h.value = Math.round((parseFloat(w.value)||0) * r);
+    });
+    h.addEventListener('input', () => {
+      if(!gi('iszLock').checked || !selImg) return;
+      const r = selImg.naturalWidth / selImg.naturalHeight;
+      w.value = Math.round((parseFloat(h.value)||0) * r);
+    });
+  }
+  gi('imgSizeDlg').classList.add('open');
+}
+function iszPreset(f){
+  if(!selImg) return;
+  const w = Math.round(selImg.naturalWidth * f);
+  gi('iszW').value = w;
+  gi('iszH').value = Math.round(selImg.naturalHeight * f);
+}
+function iszFull(){
+  if(!selImg) return;
+  selImg.style.width = '100%'; selImg.style.height = 'auto';
+  selImg.dataset.sz = 'f'; delete selImg.dataset.px;
+  gi('imgSizeDlg').classList.remove('open');
+  syncSrc(); toast('칸에 꽉 차게 맞췄습니다.','ok');
+}
+function iszApply(){
+  if(!selImg) return;
+  const w = parseInt(gi('iszW').value) || 0;
+  const h = parseInt(gi('iszH').value) || 0;
+  if(w < 20){ toast('가로는 20px 이상이어야 합니다.','err'); return; }
+  selImg.style.width = w + 'px';
+  selImg.style.height = gi('iszLock').checked ? 'auto' : (h + 'px');
+  selImg.style.maxWidth = '100%';
+  selImg.dataset.px = w + (gi('iszLock').checked ? '' : ('x' + h));
+  delete selImg.dataset.sz;
+  gi('imgSizeDlg').classList.remove('open');
+  syncSrc();
+  toast('크기를 ' + w + 'px 로 맞췄습니다.','ok');
+}
+
+/* ═══════ 사진 모서리를 끌어서 크기 조절 ═══════ */
+let rzHandles = null, rzTarget = null;
+
+function showHandles(im){
+  hideHandles();
+  rzTarget = im;
+  const ed = gi('cedit');
+  const box = document.createElement('div');
+  box.className = 'rz-box';
+  box.innerHTML = ['e','s','se'].map(d =>
+    `<span class="rz-h rz-${d}" data-d="${d}"></span>`).join('')
+    + '<span class="rz-size"></span>';
+  document.body.appendChild(box);
+  rzHandles = box;
+  placeHandles();
+
+  box.querySelectorAll('.rz-h').forEach(h => {
+    h.addEventListener('mousedown', ev => {
+      ev.preventDefault(); ev.stopPropagation();
+      const dir = h.dataset.d;
+      const r = im.getBoundingClientRect();
+      const sx = ev.clientX, sy = ev.clientY, sw = r.width, sh = r.height;
+      const ratio = sh / sw;
+
+      const move = e2 => {
+        let w = sw, hh = sh;
+        if(dir === 'e')  { w = sw + (e2.clientX - sx); hh = 'auto'; }
+        if(dir === 's')  { hh = sh + (e2.clientY - sy); }
+        if(dir === 'se') { w = sw + (e2.clientX - sx); hh = w * ratio; }  // 대각선 = 비율 유지
+        w = Math.max(30, Math.round(w));
+        im.style.width = w + 'px';
+        im.style.maxWidth = '100%';
+        im.style.height = (dir === 'e') ? 'auto' : Math.max(20, Math.round(hh)) + 'px';
+        if(dir === 'se') im.style.height = 'auto';
+        im.dataset.px = w;
+        delete im.dataset.sz;
+        placeHandles();
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        syncSrc();
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+  });
+}
+
+function placeHandles(){
+  if(!rzHandles || !rzTarget) return;
+  const r = rzTarget.getBoundingClientRect();
+  const b = rzHandles;
+  b.style.left = (r.left + window.scrollX) + 'px';
+  b.style.top  = (r.top + window.scrollY) + 'px';
+  b.style.width = r.width + 'px';
+  b.style.height = r.height + 'px';
+  const s = b.querySelector('.rz-size');
+  if(s) s.textContent = Math.round(r.width) + ' × ' + Math.round(r.height);
+}
+
+function hideHandles(){
+  if(rzHandles){ rzHandles.remove(); rzHandles = null; rzTarget = null; }
+}
+window.addEventListener('scroll', placeHandles, true);
+window.addEventListener('resize', placeHandles);
+
+/* ═══════ 글자 크기 ═══════ */
+function setFontSize(px){
+  if(!px) return;
+  const ed = gi('cedit');
+  restoreCaret();
+  const sel = window.getSelection();
+  if(!sel || sel.isCollapsed){
+    toast('크기를 바꿀 글자를 먼저 드래그해서 선택해 주세요.','err'); return;
+  }
+  document.execCommand('fontSize', false, '7');       // 임시 표시
+  ed.querySelectorAll('font[size="7"]').forEach(f => {
+    const sp = document.createElement('span');
+    sp.style.fontSize = px + 'px';
+    sp.innerHTML = f.innerHTML;
+    f.replaceWith(sp);
+  });
+  saveCaret(); syncSrc();
+  toast('글자 크기를 ' + px + 'px 로 바꿨습니다.','ok');
+}
+
+/* 선택한 글자를 조금씩 키우거나 줄입니다 */
+function fontStep(dir){
+  const sel = window.getSelection();
+  if(!sel || sel.isCollapsed){
+    toast('크기를 바꿀 글자를 먼저 드래그해서 선택해 주세요.','err'); return;
+  }
+  let node = sel.anchorNode;
+  if(node && node.nodeType === 3) node = node.parentElement;
+  const cur = node ? parseFloat(getComputedStyle(node).fontSize) : 15;
+  const next = Math.min(Math.max(Math.round(cur + dir * 2), 9), 48);
+  setFontSize(next);
+}
+
 /* ═══════ 기사 안 버튼 ═══════ */
 const BTN_COLORS = ['#c2185b','#1b4332','#2d6a4f','#2d88b5','#c05600','#4a3520','#26292e','#a04752'];
 let btnColor = '#c2185b', btnW = '100%';
@@ -2741,7 +3044,9 @@ function normalizeGrids(){
 
     const gs = [
       'display:grid',
-      `grid-template-columns:repeat(${cols},minmax(0,1fr))`,
+      g.dataset.fr
+        ? `grid-template-columns:${g.dataset.fr.split(',').map(v=>'minmax(0,'+v+'fr)').join(' ')}`
+        : `grid-template-columns:repeat(${cols},minmax(0,1fr))`,
       'align-items:stretch',
       tp ? 'gap:14px' : 'gap:0',
       'margin:20px 0',
@@ -3063,6 +3368,9 @@ const BOUND = new WeakSet();
 function bindCaret(){
   const ed = gi('cedit'); if(!ed || BOUND.has(ed)) return;
   BOUND.add(ed);
+  ed.addEventListener('mousedown', e => {
+    if(e.target.tagName !== 'IMG' && !e.target.closest('.rz-h')) hideHandles();
+  });
   ['keyup','mouseup','focus'].forEach(ev =>
     ed.addEventListener(ev, () => { saveCaret(); showInsertHint(); }));
 }
@@ -3098,6 +3406,7 @@ function bindGrid(){
       c.classList.add('sel'); selCell = c;
       const st = gi('imgSel'); if(st) st.textContent = '';
       if(!c.querySelector('p,div,img')) c.innerHTML = '<p><br></p>';
+      showColBars(c.closest('.wg'));
       setTimeout(()=>{ saveCaret(); showInsertHint(); }, 0);
     });
     c.addEventListener('dragover', e => { e.preventDefault(); c.classList.add('drop'); });
@@ -3128,7 +3437,8 @@ function bindGrid(){
       ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
       if(cell){ cell.classList.add('sel'); selCell = cell; }
       const st = gi('imgSel');
-      if(st) st.textContent = '🖼 사진 선택됨 — 크기·정렬 버튼을 누르세요';
+      if(st) st.textContent = '🖼 사진 선택됨 — 모서리를 끌거나 크기 버튼을 쓰세요';
+      showHandles(im);
     };
     im.addEventListener('mousedown', pick);   // 클릭이 편집기에 먹히지 않도록
     im.addEventListener('click', pick);
