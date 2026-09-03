@@ -593,6 +593,8 @@ input,select,textarea{font-family:inherit}
                   <button onclick="bgPick('grid')" type="button" title="격자 전체 배경색">🎨 표 배경</button>
                   <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
                   <button onclick="lineDlg()" type="button" title="표 선 모양·굵기·색상">┼ 선 모양</button>
+                  <button onclick="btnDlg()" type="button" title="자세히 보기 같은 버튼 넣기"
+                    style="border-color:#c2185b;color:#c2185b;font-weight:800">🔘 버튼</button>
                   <span class="ct-sep"></span>
                   <button onclick="imgSize('s')" type="button" title="선택한 사진 작게">🖼 작게</button>
                   <button onclick="imgSize('m')" type="button">보통</button>
@@ -898,6 +900,42 @@ input,select,textarea{font-family:inherit}
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
       <button class="btn bd bsm" onclick="deleteSp()">삭제</button>
       <button class="btn bo bsm" onclick="closeSpDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 버튼 넣기 -->
+<div class="conf" id="btnDlgBox">
+  <div class="conf-box" style="max-width:460px">
+    <h3>🔘 버튼 넣기</h3>
+    <p style="margin-bottom:13px">기사 안에 누를 수 있는 버튼을 넣습니다.</p>
+
+    <div class="sf" style="margin-bottom:11px">
+      <label>버튼 글자</label>
+      <input id="btnText" value="자세히 보기" placeholder="예: 자세히 보기">
+    </div>
+    <div class="sf" style="margin-bottom:11px">
+      <label>연결 주소 <small style="color:var(--text-s);font-weight:400">— 비우면 누를 수 없는 장식용</small></label>
+      <input id="btnUrl" placeholder="https://...">
+    </div>
+    <div class="sf" style="margin-bottom:11px">
+      <label>색상</label>
+      <div id="btnColors" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+    </div>
+    <div class="sf" style="margin-bottom:13px">
+      <label>너비</label>
+      <div style="display:flex;gap:7px">
+        <button class="btn bo bsm" onclick="btnW='auto';btnPrev()">글자 크기만큼</button>
+        <button class="btn bo bsm" onclick="btnW='100%';btnPrev()">칸 전체</button>
+      </div>
+    </div>
+    <div style="background:var(--bg);border-radius:7px;padding:14px;text-align:center;margin-bottom:6px">
+      <div style="font-size:.71rem;color:var(--text-s);margin-bottom:8px">미리보기</div>
+      <div id="btnPrevBox"></div>
+    </div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('btnDlgBox').classList.remove('open')">취소</button>
+      <button class="btn bs" onclick="btnInsert()">넣기</button>
     </div>
   </div>
 </div>
@@ -1876,7 +1914,7 @@ function addPreview(src, name) {
   const el = document.createElement('div');
   el.className = 'ipi';
   el.innerHTML =
-    '<img src="' + src + '">' +
+    '<img src="' + src + '" onerror="watchImg(this)">' +
     '<div class="ipi-name">' + (name||'').substring(0,10) + '</div>' +
     '<button class="ipd" onclick="this.parentElement.remove()" type="button">✕</button>';
   gi('imgPrev').appendChild(el);
@@ -2012,6 +2050,24 @@ function showInsertHint(){
   el.style.color = c ? 'var(--sky)' : 'var(--text-s)';
 }
 
+/* GitHub 반영에 1~2분 걸릴 수 있어, 사진이 안 뜨면 자동으로 다시 불러옵니다 */
+function retryImg(im, tries){
+  tries = tries || 0;
+  if(tries > 12) return;                    // 최대 약 60초
+  im.style.opacity = '.45';
+  setTimeout(() => {
+    const base = im.src.split('?')[0];
+    im.src = base + '?t=' + Date.now();     // 캐시를 피해 새로 요청
+  }, 5000);
+}
+function watchImg(im){
+  if(im.dataset.watch) return;
+  im.dataset.watch = '1';
+  let n = 0;
+  im.addEventListener('load', () => { im.style.opacity = ''; im.removeAttribute('data-watch'); });
+  im.addEventListener('error', () => { n++; retryImg(im, n); });
+}
+
 /* 사진을 커서가 있던 자리에 넣습니다 */
 function insertImageInto(url){
   const ed = gi('cedit');
@@ -2038,6 +2094,7 @@ function insertImageInto(url){
   const fresh = ed.querySelector('img[data-new="1"]');
   if(fresh){
     fresh.removeAttribute('data-new');
+    watchImg(fresh);
     ed.querySelectorAll('img').forEach(x => x.classList.remove('sel'));
     fresh.classList.add('sel');
     selImg = fresh;
@@ -2283,7 +2340,7 @@ async function uploadFiles(files){
   }
   st.textContent = fail ? `✅ ${ok}장 완료 · ❌ ${fail}장 실패` : `✅ ${ok}장 모두 올렸습니다.`;
   setTimeout(() => st.remove(), 4000);
-  if(ok) toast(`✅ 사진 ${ok}장을 올려 본문에 넣었습니다.`, 'ok');
+  if(ok) toast(`✅ 사진 ${ok}장 완료. 화면에 나타나기까지 1분쯤 걸릴 수 있습니다.`, 'ok');
   const g = gi('phmGrid'); if(g) delete g.dataset.loaded;   // 보관함 목록 갱신
 }
 
@@ -2355,6 +2412,61 @@ function phPick(path){
 
 
 
+
+
+/* ═══════ 기사 안 버튼 ═══════ */
+const BTN_COLORS = ['#c2185b','#1b4332','#2d6a4f','#2d88b5','#c05600','#4a3520','#26292e','#a04752'];
+let btnColor = '#c2185b', btnW = '100%';
+
+function btnDlg(){
+  saveCaret();
+  gi('btnColors').innerHTML = BTN_COLORS.map(c =>
+    `<button onclick="btnColor='${c}';btnPrev()" title="${c}"
+      style="width:32px;height:32px;border:2px solid ${c===btnColor?'#333':'#d0d7de'};
+      border-radius:6px;background:${c};cursor:pointer"></button>`).join('');
+  const t = gi('btnText'), u = gi('btnUrl');
+  if(t && !t.dataset.b){ t.dataset.b='1'; t.addEventListener('input', btnPrev); }
+  if(u && !u.dataset.b){ u.dataset.b='1'; u.addEventListener('input', btnPrev); }
+  btnPrev();
+  gi('btnDlgBox').classList.add('open');
+}
+
+function btnHTML(){
+  const txt = (gi('btnText').value || '자세히 보기').trim();
+  const url = (gi('btnUrl').value || '').trim();
+  const esc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const style = `display:${btnW==='100%'?'block':'inline-block'};`
+    + (btnW==='100%' ? 'width:100%;' : '')
+    + `background:${btnColor};color:#fff;text-align:center;`
+    + `padding:11px 22px;border-radius:6px;font-weight:800;font-size:.9rem;`
+    + `text-decoration:none;margin:10px 0`;
+  return url
+    ? `<a class="wz-btn" href="${esc(url)}" target="_blank" rel="noopener" style="${style}">${esc(txt)}</a>`
+    : `<span class="wz-btn" style="${style}">${esc(txt)}</span>`;
+}
+
+function btnPrev(){
+  const box = gi('btnPrevBox');
+  if(box) box.innerHTML = btnHTML();
+  gi('btnColors').innerHTML = BTN_COLORS.map(c =>
+    `<button onclick="btnColor='${c}';btnPrev()" title="${c}"
+      style="width:32px;height:32px;border:2px solid ${c===btnColor?'#333':'#d0d7de'};
+      border-radius:6px;background:${c};cursor:pointer"></button>`).join('');
+}
+
+function btnInsert(){
+  const ed = gi('cedit');
+  const html = btnHTML() + '<p><br></p>';
+  const r = restoreCaret();
+  const cell = caretCell();
+  if(r) document.execCommand('insertHTML', false, html);
+  else if(cell) cell.insertAdjacentHTML('beforeend', html);
+  else ed.insertAdjacentHTML('beforeend', html);
+  gi('btnDlgBox').classList.remove('open');
+  bindGrid(); saveCaret(); syncSrc();
+  toast('버튼을 넣었습니다.','ok');
+}
 
 /* ═══════ 사진 속 글자 (음성 읽어주기·복사 대응) ═══════
    이미지 안의 글자는 컴퓨터가 읽지 못하므로,
