@@ -308,6 +308,7 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc.sel{border:2px solid var(--sky);background:var(--sky-l)}
 #cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
 #cedit img{cursor:grab;max-width:100%;height:auto;border-radius:6px}
+#cedit img.img-loading{opacity:.45;filter:grayscale(.3)}
 #cedit img:active{cursor:grabbing}
 #cedit img.sel{outline:3px solid var(--sky);outline-offset:2px}
 #cedit img[data-sz="s"]{width:38%} #cedit img[data-sz="m"]{width:60%}
@@ -806,6 +807,16 @@ input,select,textarea{font-family:inherit}
               <label>⚡ 사진 자동 업로드 <small style="color:var(--text-s);font-weight:400">— 이 컴퓨터에만 저장됩니다</small></label>
               <input id="supUrl" placeholder="업로드 서버 주소 (https://....workers.dev)">
               <input id="supKey" type="password" placeholder="업로드 암호" style="margin-top:7px">
+              <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+                <span style="font-size:.74rem;font-weight:700;color:var(--text)">사진 크기</span>
+                <select id="supMaxw" style="border:1.5px solid var(--border);border-radius:7px;
+                  padding:6px 9px;font-size:.76rem;font-weight:700">
+                  <option value="1000">작게 (1000px) — 가장 빠름</option>
+                  <option value="1400" selected>보통 (1400px) — 권장</option>
+                  <option value="1800">크게 (1800px)</option>
+                  <option value="2400">아주 크게 (2400px) — 느림</option>
+                </select>
+              </div>
               <div style="display:flex;gap:7px;margin-top:8px;align-items:center;flex-wrap:wrap">
                 <button class="btn bs bsm" onclick="saveUpCfg()">저장</button>
                 <button class="btn bo bsm" onclick="testUpCfg()">연결 확인</button>
@@ -1841,7 +1852,11 @@ function newArt(){
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
-  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint(); }, 100);
+  setTimeout(()=>{
+    initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint();
+    const n = fixImgSrcs();
+    if(n) toast('사진 주소 ' + n + '개를 바로잡았습니다. 저장해 주세요.','ok');
+  }, 100);
 }
 function editArt(id){
   const a=ARTS.find(x=>x.id==id||x.id===id||x._firebaseId===id); if(!a)return;
@@ -1861,7 +1876,11 @@ function editArt(id){
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
-  setTimeout(()=>{ initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint(); }, 100);
+  setTimeout(()=>{
+    initDropZone(); bindGrid(); bindCaret(); bindSelMode(); showInsertHint();
+    const n = fixImgSrcs();
+    if(n) toast('사진 주소 ' + n + '개를 바로잡았습니다. 저장해 주세요.','ok');
+  }, 100);
 }
 
 /* ★ 드래그 앤 드롭 사진 업로드 */
@@ -2063,21 +2082,49 @@ function showInsertHint(){
 }
 
 /* GitHub 반영에 1~2분 걸릴 수 있어, 사진이 안 뜨면 자동으로 다시 불러옵니다 */
-function retryImg(im, tries){
-  tries = tries || 0;
-  if(tries > 12) return;                    // 최대 약 60초
-  im.style.opacity = '.45';
-  setTimeout(() => {
-    const base = im.src.split('?')[0];
-    im.src = base + '?t=' + Date.now();     // 캐시를 피해 새로 요청
-  }, 5000);
-}
+/* 반영이 늦어 사진이 안 뜨면 다시 시도합니다.
+   본문에 저장되는 주소(src)는 건드리지 않고, 화면 표시만 새로 요청합니다. */
 function watchImg(im){
   if(im.dataset.watch) return;
   im.dataset.watch = '1';
+  const real = (im.getAttribute('src') || '').split('?')[0];
   let n = 0;
-  im.addEventListener('load', () => { im.style.opacity = ''; im.removeAttribute('data-watch'); });
-  im.addEventListener('error', () => { n++; retryImg(im, n); });
+
+  const retry = () => {
+    if(n++ > 12){ im.classList.remove('img-loading'); im.removeAttribute('data-watch'); return; }
+    im.classList.add('img-loading');
+    setTimeout(() => {
+      // 몰래 따로 불러와 보고, 성공하면 원래 주소로 되돌립니다
+      const probe = new Image();
+      probe.onload = () => {
+        im.setAttribute('src', real);
+        im.classList.remove('img-loading');
+        im.removeAttribute('data-watch');
+      };
+      probe.onerror = retry;
+      probe.src = real + '?probe=' + Date.now();
+    }, 5000);
+  };
+
+  im.addEventListener('load', () => {
+    im.classList.remove('img-loading'); im.removeAttribute('data-watch');
+    if(/\?/.test(im.getAttribute('src') || '')) im.setAttribute('src', real);
+  });
+  im.addEventListener('error', retry);
+}
+
+/* 이미 저장된 기사에 꼬리표가 붙어 있으면 정리합니다 */
+function fixImgSrcs(){
+  const ed = gi('cedit'); if(!ed) return 0;
+  let n = 0;
+  ed.querySelectorAll('img').forEach(im => {
+    const v = im.getAttribute('src') || '';
+    if(/\?t=\d+/.test(v)){ im.setAttribute('src', v.split('?')[0]); n++; }
+    // 잘못 남은 반투명 상태 되돌리기
+    if(im.style && im.style.opacity){ im.style.opacity = ''; n++; }
+  });
+  if(n) syncSrc();
+  return n;
 }
 
 /* 사진을 커서가 있던 자리에 넣습니다 */
@@ -2235,6 +2282,8 @@ function loadUpCfg(){
   const u = gi('supUrl'), k = gi('supKey');
   if(u) u.value = localStorage.getItem('wc_up_url') || '';
   if(k) k.value = localStorage.getItem('wc_up_key') || '';
+  const m = gi('supMaxw');
+  if(m) m.value = localStorage.getItem('wc_up_maxw') || '1400';
   const st = gi('supState');
   if(st) st.textContent = (u && u.value && k && k.value) ? '설정됨' : '';
 }
@@ -2244,6 +2293,8 @@ function saveUpCfg(){
   if(url && !/^https:\/\//.test(url)){ toast('주소는 https:// 로 시작해야 합니다.','err'); return; }
   localStorage.setItem('wc_up_url', url);
   localStorage.setItem('wc_up_key', key);
+  const m = gi('supMaxw');
+  if(m) localStorage.setItem('wc_up_maxw', m.value);
   toast('저장했습니다. 새로고침하면 적용됩니다.','ok');
   const st = gi('supState');
   if(st){ st.textContent = '저장됨 — 새로고침 필요'; st.style.color='var(--green)'; }
@@ -2276,13 +2327,41 @@ async function testUpCfg(){
    글 쓰던 자리에 바로 넣어줍니다. */
 const UP_URL = localStorage.getItem('wc_up_url') || '';
 const UP_KEY = localStorage.getItem('wc_up_key') || '';
-const UP_MAXW = 1600;    // 가로 최대 픽셀 — 웹진에는 이 정도면 충분합니다
-const UP_QUALITY = 0.85;
+const UP_MAXW = parseInt(localStorage.getItem('wc_up_maxw')) || 1400;  // 가로 최대 픽셀
+const UP_QUALITY = parseFloat(localStorage.getItem('wc_up_q')) || 0.8;
 
 function upReady(){ return !!(UP_URL && UP_KEY); }
 
 /* 사진을 줄여 base64 로 만듭니다 (용량·전송량 절약) */
-function shrinkImage(file){
+async function shrinkImage(file){
+  // 최신 브라우저에서는 훨씬 빠른 방식을 씁니다
+  if(window.createImageBitmap && window.OffscreenCanvas){
+    try{
+      const bmp = await createImageBitmap(file);
+      let w = bmp.width, h = bmp.height;
+      if(w > UP_MAXW){ h = Math.round(h * UP_MAXW / w); w = UP_MAXW; }
+      const cv = new OffscreenCanvas(w, h);
+      const cx = cv.getContext('2d');
+      cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h);
+      cx.drawImage(bmp, 0, 0, w, h);
+      bmp.close();
+      const isPng = /png$/i.test(file.type);
+      const blob = await cv.convertToBlob({
+        type: isPng ? 'image/png' : 'image/jpeg', quality: UP_QUALITY });
+      const buf = await blob.arrayBuffer();
+      let bin = '';
+      const bytes = new Uint8Array(buf);
+      const CH = 0x8000;
+      for(let i = 0; i < bytes.length; i += CH){
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+      }
+      return { base64: btoa(bin), ext: isPng ? 'png' : 'jpg', w, h };
+    }catch(e){ /* 실패하면 아래 방식으로 */ }
+  }
+  return shrinkImageLegacy(file);
+}
+
+function shrinkImageLegacy(file){
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
@@ -2325,7 +2404,7 @@ async function uploadOne(file, folder){
   return out.path;
 }
 
-/* 여러 장을 차례로 올리고 본문에 넣습니다 */
+/* 여러 장을 동시에 올립니다 (한 번에 3장씩 병렬 처리) */
 async function uploadFiles(files){
   if(!upReady()){
     toast('업로드 서버가 설정되지 않았습니다. 설정 화면에서 주소와 암호를 입력해 주세요.','err');
@@ -2336,24 +2415,46 @@ async function uploadFiles(files){
   st.style.cssText = 'margin-top:10px;font-size:.8rem;font-weight:700;color:var(--sky)';
   if(zone) zone.appendChild(st);
 
-  let ok = 0, fail = 0;
-  for(let i = 0; i < files.length; i++){
-    st.textContent = `⏳ 올리는 중... (${i+1}/${files.length}) ${files[i].name}`;
-    try{
-      const path = await uploadOne(files[i], 'images/vol3');
-      insertImageInto(path);
-      addPreview(path, files[i].name);
-      ok++;
-    }catch(e){
-      console.error(e);
-      fail++;
-      toast('❌ ' + files[i].name + ' : ' + e.message, 'err');
+  const t0 = Date.now();
+  let done = 0, ok = 0, fail = 0;
+  const results = new Array(files.length);
+  const upd = () => {
+    st.textContent = `⏳ 올리는 중... ${done}/${files.length}`;
+  };
+  upd();
+
+  // 3장씩 동시에 처리 — 순서는 그대로 유지됩니다
+  const LANES = 3;
+  let next = 0;
+  async function lane(){
+    while(next < files.length){
+      const i = next++;
+      try{
+        results[i] = await uploadOne(files[i], 'images/vol3');
+        ok++;
+      }catch(e){
+        console.error(e); fail++;
+        toast('❌ ' + files[i].name + ' : ' + e.message, 'err');
+      }
+      done++; upd();
     }
   }
-  st.textContent = fail ? `✅ ${ok}장 완료 · ❌ ${fail}장 실패` : `✅ ${ok}장 모두 올렸습니다.`;
-  setTimeout(() => st.remove(), 4000);
+  await Promise.all(Array.from({length: Math.min(LANES, files.length)}, lane));
+
+  // 올린 순서대로 본문에 넣습니다
+  results.forEach((path, i) => {
+    if(!path) return;
+    insertImageInto(path);
+    addPreview(path, files[i].name);
+  });
+
+  const sec = ((Date.now() - t0) / 1000).toFixed(1);
+  st.textContent = fail
+    ? `✅ ${ok}장 완료 · ❌ ${fail}장 실패 (${sec}초)`
+    : `✅ ${ok}장 모두 올렸습니다. (${sec}초)`;
+  setTimeout(() => st.remove(), 5000);
   if(ok) toast(`✅ 사진 ${ok}장 완료. 화면에 나타나기까지 1분쯤 걸릴 수 있습니다.`, 'ok');
-  const g = gi('phmGrid'); if(g) delete g.dataset.loaded;   // 보관함 목록 갱신
+  const g = gi('phmGrid'); if(g) delete g.dataset.loaded;
 }
 
 /* ═══════ 편집 중 사진 보관함 ═══════
@@ -3060,6 +3161,8 @@ function imgAlign(al){
 /* 편집 내용을 HTML 칸과 동기화 */
 function cleanHTML(h){
   return String(h||'')
+    .replace(/(<img[^>]+src=")([^"]*?)\?t=\d+(")/gi, '$1$2$3')   // 재시도용 꼬리표 제거
+    .replace(/opacity:\s*0?\.\d+;?/gi, '')                        // 잘못 남은 반투명 제거
     .replace(/\s+data-b="1"/g,'')
     .replace(/\s+data-new="1"/g,'')
     .replace(/\s+contenteditable="[^"]*"/gi,'')   // 방문자가 본문에 글을 못 쓰도록

@@ -487,6 +487,9 @@ img{max-width:100%}
   .wz-body .wg .wc{padding:13px}
 }
 
+/* 편집 중 임시 상태가 남아도 화면에서는 선명하게 */
+.wz-body img{opacity:1 !important;filter:none !important}
+
 /* 기사 안 버튼 */
 .wz-body .wz-btn{transition:filter .16s, transform .16s}
 a.wz-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
@@ -809,7 +812,7 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
         <div class="empty" id="emptyBox" style="display:none">
           <div style="font-size:2.5rem">🔍</div>
           <p id="emptyMsg">기사가 없습니다.</p>
-          <button class="btn-rs" onclick="clearSearch()">전체 기사 보기</button>
+          <button class="btn-rs" onclick="clearSearch()">최신 호 보기</button>
         </div>
       </div>
     </div>
@@ -1061,17 +1064,17 @@ function monthLabel(k){
 function buildMonths(){
   const cnt = {};
   ARTS.forEach(a => { const k = monthKey(a); if(k) cnt[k] = (cnt[k]||0)+1; });
-  const keys = Object.keys(cnt).sort().reverse();
+  const keys = Object.keys(cnt).sort().reverse();   // 최신 호가 맨 앞
   const sig  = keys.join(',');
   const sel  = document.getElementById('wzMonth');
   if(!sel) return;
 
   if(sig !== monthSig){
     monthSig = sig;
-    if(curMonth!=='all' && !keys.includes(curMonth)) curMonth='all';
-    let html = `<option value="all">전체 기간 (${ARTS.length}건)</option>`;
-    keys.forEach(k => { html += `<option value="${k}">${monthLabel(k)} (${cnt[k]}건)</option>`; });
-    sel.innerHTML = html;
+    // 처음 들어오면 가장 최신 호를 보여줍니다
+    if(curMonth === 'all' || !keys.includes(curMonth)) curMonth = keys[0] || 'all';
+    sel.innerHTML = keys.map(k =>
+      `<option value="${k}">${monthLabel(k)} (${cnt[k]}건)</option>`).join('');
   }
   sel.value = curMonth;
   const c = document.getElementById('wzCnt');
@@ -1115,7 +1118,7 @@ function render() {
   // 제목 줄
   const t = document.getElementById('wzTitle');
   const sub = document.getElementById('wzSub');
-  if(t) t.textContent = (curMonth==='all') ? '전체 기사' : monthLabel(curMonth);
+  if(t) t.textContent = (curMonth==='all') ? '월출어람' : monthLabel(curMonth);
   if(sub){
     const parts = [];
     if(curTag !== 'all') parts.push('분류: ' + curTag);
@@ -1147,6 +1150,14 @@ function render() {
     const tmp = document.createElement('div');
     tmp.innerHTML = a.content || `<p>${a.summary||''}</p>`;
     // 격자(표) 안의 사진은 배치를 살려 그대로 두고, 격자 밖 사진만 따로 모읍니다
+    // 예전에 저장된 사진의 꼬리표(?t=...)와 잘못 남은 반투명을 걷어냅니다
+    tmp.querySelectorAll('img').forEach(im => {
+      const v = im.getAttribute('src') || '';
+      if(/\?t=\d+/.test(v)) im.setAttribute('src', v.split('?')[0]);
+      if(im.style && im.style.opacity) im.style.opacity = '';
+      const st = im.getAttribute('style') || '';
+      if(/opacity/i.test(st)) im.setAttribute('style', st.replace(/opacity:\s*0?\.\d+;?/gi,''));
+    });
     tmp.querySelectorAll('.wg img').forEach(im => im.setAttribute('loading','lazy'));
     // 사진 속 글자 — 펼치기 버튼을 붙입니다
     tmp.querySelectorAll('figure.imgtxt .imgtxt-cap').forEach((cap, n) => {
@@ -1160,7 +1171,7 @@ function render() {
     // 방문자가 본문에 글을 쓰지 못하도록 (예전에 저장된 기사 대비)
     tmp.querySelectorAll('[contenteditable]').forEach(el => el.setAttribute('contenteditable','false'));
     const loose = [...tmp.querySelectorAll('img')].filter(im => !im.closest('.wg'));
-    const imgs = loose.map(im => im.getAttribute('src')).filter(Boolean);
+    const imgs = loose.map(im => (im.getAttribute('src')||'').split('?')[0]).filter(Boolean);
     loose.forEach(im => { const f = im.closest('figure'); (f||im).remove(); });
 
     const lay  = a.layout || 'default';
@@ -1252,8 +1263,9 @@ function loadMore() { render(); }
 function setTag(tag){ curTag = tag; render(); }
 function onSearch(){ }
 function clearSearch(){
-  q = ''; curTag = 'all'; curMonth = 'all';
-  const sel = document.getElementById('wzMonth'); if(sel) sel.value = 'all';
+  q = ''; curTag = 'all';
+  monthSig = '';        // 다시 계산해서 최신 호로 되돌립니다
+  curMonth = 'all';
   render();
 }
 
