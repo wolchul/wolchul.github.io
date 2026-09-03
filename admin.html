@@ -2088,7 +2088,14 @@ function imgAlign(al){
 
 /* 편집 내용을 HTML 칸과 동기화 */
 function cleanHTML(h){
-  return String(h||'').replace(/\s+data-b="1"/g,'').replace(/\s+data-new="1"/g,'');
+  return String(h||'')
+    .replace(/\s+data-b="1"/g,'')
+    .replace(/\s+data-new="1"/g,'')
+    .replace(/\s+contenteditable="[^"]*"/gi,'')   // 방문자가 본문에 글을 못 쓰도록
+    .replace(/\s+draggable="[^"]*"/gi,'')
+    .replace(/\s+spellcheck="[^"]*"/gi,'')
+    .replace(/\s+class="wc sel"/g,' class="wc"')  // 편집 중 선택 표시 제거
+    .replace(/(<img[^>]*?)\s+class="sel"/g,'$1');
 }
 function syncSrc(){
   const src = gi('csrc');

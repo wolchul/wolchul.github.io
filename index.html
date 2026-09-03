@@ -447,6 +447,10 @@ img{max-width:100%}
 .wz-photos img:hover{transform:scale(1.02)}
 .wz-photos img.fit-contain{object-fit:contain;background:var(--c-light)}
 
+/* 방문자가 본문을 편집하지 못하게 (예전에 저장된 기사 대비) */
+.wz-body [contenteditable]{ -webkit-user-modify:read-only !important; user-modify:read-only !important; }
+.wz-body{ -webkit-user-select:text; user-select:text; }
+
 /* 본문 안 격자(표) */
 .wz-body .wg{display:grid;gap:16px;margin:18px 0;align-items:start}
 .wz-body .wg .wc{min-width:0}
@@ -458,6 +462,7 @@ img{max-width:100%}
 .wz-body .wg .wc > *:first-child{margin-top:0}
 .wz-body .wg .wc > *:last-child{margin-bottom:0}
 .wz-body .wg img{margin:8px auto;border-radius:var(--r);cursor:zoom-in}
+.wz-side-img img{cursor:zoom-in}
 @media(max-width:640px){
   .wz-body .wg{grid-template-columns:minmax(0,1fr) !important;gap:12px}
   .wz-body .wg .wc[data-span]{grid-column:auto !important}
@@ -475,9 +480,13 @@ img{max-width:100%}
 
 /* 사진 크게 보기 */
 .wz-zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:900;
-  display:none;align-items:center;justify-content:center;padding:24px}
+  display:none;align-items:center;justify-content:center;padding:24px;
+  overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pinch-zoom}
 .wz-zoom.open{display:flex}
-.wz-zoom img{max-width:100%;max-height:100%;border-radius:var(--r)}
+.wz-zoom img{max-width:min(880px,94vw);max-height:86vh;width:auto;height:auto;
+  border-radius:var(--r);box-shadow:0 12px 50px rgba(0,0,0,.5);cursor:zoom-out}
+.wz-zoom-cap{position:absolute;bottom:20px;left:0;right:0;text-align:center;
+  color:rgba(255,255,255,.8);font-size:.78rem}
 .wz-zoom-x{position:absolute;top:18px;right:20px;background:rgba(255,255,255,.2);
   border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:1.2rem;cursor:pointer}
 
@@ -713,23 +722,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 </section>
 
 <!-- 필터 -->
-<div class="filter-bar">
-  <div class="filter-in">
-    <div class="search-box">
-      <input type="search" id="srch" placeholder="기사 검색..." oninput="onSearch()">
-      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-    </div>
-    <button class="btn-clr" id="clrBtn" onclick="clearSearch()">✕ 초기화</button>
-    <div class="filter-tags">
-      <button class="ftag on" onclick="setTag('all',this)">전체</button>
-      <button class="ftag" onclick="setTag('함께한 이야기',this)">함께한 이야기</button>
-      <button class="ftag" onclick="setTag('공모사업',this)">공모사업</button>
-      <button class="ftag" onclick="setTag('후원봉사',this)">후원·봉사</button>
-      <button class="ftag" onclick="setTag('소식',this)">소식</button>
-    </div>
-  </div>
-</div>
-
 <main id="main">
   <div class="inner section" id="articles">
 
@@ -775,7 +767,7 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
         <div class="empty" id="emptyBox" style="display:none">
           <div style="font-size:2.5rem">🔍</div>
           <p id="emptyMsg">기사가 없습니다.</p>
-          <button class="btn-rs" onclick="clearSearch()">초기화</button>
+          <button class="btn-rs" onclick="clearSearch()">전체 기사 보기</button>
         </div>
       </div>
     </div>
@@ -805,7 +797,8 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 <div class="mov" id="movOv" onclick="if(event.target===this)closeModal()" role="dialog" aria-modal="true" aria-labelledby="mTitle">
   <div class="wz-zoom" id="wzZoom" onclick="closeZoom()">
   <button class="wz-zoom-x" onclick="closeZoom()" aria-label="닫기">✕</button>
-  <img id="wzZoomImg" src="" alt="">
+  <img id="wzZoomImg" src="" alt="" onclick="event.stopPropagation()">
+  <div class="wz-zoom-cap">사진을 두 손가락으로 벌리면 더 크게 볼 수 있습니다 · 바깥을 누르면 닫힘</div>
 </div>
 
 <div class="modal">
@@ -1053,7 +1046,7 @@ function scrollToArticles(){
   const target = document.getElementById('articles');
   if(!target) return;
   const hd  = document.getElementById('hd');
-  const fb  = document.querySelector('.filter-bar');
+  const fb  = null;
   const off = (hd ? hd.offsetHeight : 0) + (fb ? fb.offsetHeight : 0) + 16;
   const y   = target.getBoundingClientRect().top + window.pageYOffset - off;
   window.scrollTo({ top: Math.max(y, 0), behavior: 'smooth' });
@@ -1111,10 +1104,9 @@ function render() {
     const tmp = document.createElement('div');
     tmp.innerHTML = a.content || `<p>${a.summary||''}</p>`;
     // 격자(표) 안의 사진은 배치를 살려 그대로 두고, 격자 밖 사진만 따로 모읍니다
-    tmp.querySelectorAll('.wg img').forEach(im => {
-      im.setAttribute('loading','lazy');
-      im.setAttribute('onclick', `openZoom('${im.getAttribute('src')}')`);
-    });
+    tmp.querySelectorAll('.wg img').forEach(im => im.setAttribute('loading','lazy'));
+    // 방문자가 본문에 글을 쓰지 못하도록 (예전에 저장된 기사 대비)
+    tmp.querySelectorAll('[contenteditable]').forEach(el => el.setAttribute('contenteditable','false'));
     const loose = [...tmp.querySelectorAll('img')].filter(im => !im.closest('.wg'));
     const imgs = loose.map(im => im.getAttribute('src')).filter(Boolean);
     loose.forEach(im => { const f = im.closest('figure'); (f||im).remove(); });
@@ -1124,7 +1116,7 @@ function render() {
     const side = (lay === 'left' || lay === 'right' || lay === 'top');
 
     const photoHTML = src =>
-      `<img src="${src}" alt="" loading="lazy" onload="fitThumb(this)" onclick="openZoom('${src}')">`;
+      `<img src="${src}" alt="" loading="lazy" onload="fitThumb(this)">`;
 
     // 사진을 옆·위에 두는 배치는 사진을 따로 묶고, 기본 배치는 글 아래 갤러리로
     const sideImgs = side && imgs.length
@@ -1163,6 +1155,15 @@ function render() {
   }).join('');
 }
 
+/* 본문·갤러리의 사진을 클릭하면 확대 (한 곳에서 처리) */
+document.addEventListener('click', e => {
+  const im = e.target;
+  if(!im || im.tagName !== 'IMG') return;
+  if(!im.closest('.wz-body, .wz-photos, .wz-side-img')) return;
+  e.preventDefault();
+  openZoom(im.currentSrc || im.src);
+});
+
 /* 사진 크게 보기 */
 function openZoom(src){
   const z = document.getElementById('wzZoom');
@@ -1182,21 +1183,13 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') closeZoom(); 
 function loadMore() { render(); }
 
 /* ── 필터 ── */
-function setTag(tag, btn) {
-  curTag = tag; visible = 9;
-  document.querySelectorAll('.ftag').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on'); render();
-}
-function onSearch() {
-  q = document.getElementById('srch').value.trim(); visible = 9;
-  document.getElementById('clrBtn').style.display = q ? 'inline-block' : 'none';
+/* 상단 필터바는 없앴지만, 다른 곳에서 부를 수 있어 함수는 남겨 둡니다 */
+function setTag(tag){ curTag = tag; render(); }
+function onSearch(){ }
+function clearSearch(){
+  q = ''; curTag = 'all'; curMonth = 'all';
+  const sel = document.getElementById('wzMonth'); if(sel) sel.value = 'all';
   render();
-}
-function clearSearch() {
-  q = ''; document.getElementById('srch').value = '';
-  document.getElementById('clrBtn').style.display = 'none';
-  curMonth = 'all'; syncMonthUI();
-  visible = 9; render();
 }
 
 /* ── 모달 + 사진 캐러셀 ── */
