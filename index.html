@@ -397,12 +397,25 @@ img{max-width:100%}
   color:var(--ink);background:var(--paper);cursor:pointer;outline:none}
 .wz-sel:focus{border-color:var(--c1)}
 .wz-cnt{font-size:calc(.74rem*var(--fs));color:var(--ink-s);margin-top:8px;text-align:center}
-.wz-links{display:flex;flex-direction:column;gap:7px}
-.wz-lk{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line);
-  border-radius:var(--r);padding:10px 12px;text-decoration:none;color:var(--ink-m);
-  font-size:calc(.8rem*var(--fs));font-weight:700;transition:all .16s;background:var(--white)}
-.wz-lk:hover{border-color:var(--c1);color:var(--c1);background:var(--c-light);transform:translateX(2px)}
-.wz-lk .ic{font-size:1.02rem;flex-shrink:0}
+.wz-links{display:flex;flex-direction:column;gap:8px}
+.wz-lk{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);
+  border-radius:10px;padding:10px 11px;text-decoration:none;color:var(--ink);
+  font-size:calc(.81rem*var(--fs));font-weight:800;transition:all .18s;background:var(--white)}
+.wz-lk:hover{border-color:var(--c1);background:var(--c-light);transform:translateX(3px);
+  box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.wz-lk .ic{width:34px;height:34px;border-radius:9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem}
+.wz-lk .ic svg{width:19px;height:19px}
+.wz-lk .tx{flex:1;line-height:1.3;min-width:0}
+.wz-lk .tx small{display:block;font-size:calc(.67rem*var(--fs));font-weight:600;
+  color:var(--ink-s);margin-top:2px}
+.wz-lk .go{color:var(--ink-s);font-size:1.1rem;font-weight:700;flex-shrink:0;transition:transform .18s}
+.wz-lk:hover .go{transform:translateX(3px);color:var(--c1)}
+/* 서비스별 색 */
+.lk-home  .ic{background:linear-gradient(135deg,var(--c2),var(--c3))}
+.lk-insta .ic{background:linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)}
+.lk-fb    .ic{background:#1877f2}
+.lk-kakao .ic{background:#fee500;color:#3c1e1e}
 .wz-imgcard{padding:0;overflow:hidden}
 .wz-imgcard img{width:100%;display:block}
 .wz-imgcap{font-size:calc(.72rem*var(--fs));color:var(--ink-s);padding:9px 12px;text-align:center}
@@ -653,10 +666,11 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
   font-size:.92rem;color:var(--c4);font-weight:700}
 /* 푸터 SNS·QR */
 .ft-sns{max-width:1280px;margin:34px auto 0;padding:0 32px;
-  display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .sns-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-  border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px;
-  transition:all .18s}
+  border-radius:12px;padding:15px 14px;display:flex;align-items:center;gap:12px;
+  transition:all .18s;text-decoration:none}
+.sns-card:hover{transform:translateY(-2px)}
 .sns-card:hover{background:rgba(255,255,255,.12);border-color:var(--c4)}
 .sns-head{display:flex;align-items:center;gap:11px;flex:1;
   font-size:.98rem;font-weight:800;color:#fff;line-height:1.45}
@@ -665,11 +679,13 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
   display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
 .sns-ico svg{width:22px;height:22px}
 .sns-ico.insta{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)}
+.sns-ico.kko{background:#fee500;color:#3c1e1e}
 .sns-ico.fb{background:#1877f2}
 .sns-ico.logo{background:#fff;overflow:hidden}
 .sns-ico.logo img{width:34px;height:34px;object-fit:contain}
-.sns-card img{width:76px;height:76px;border-radius:8px;background:#fff;padding:4px;flex-shrink:0}
-@media(max-width:760px){.ft-sns{grid-template-columns:1fr}}
+
+@media(max-width:1000px){.ft-sns{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.ft-sns{grid-template-columns:1fr}}
 .ft-line{max-width:1280px;margin:28px auto 0;padding:20px 32px 0;
   border-top:1px solid rgba(255,255,255,.08);font-size:.8rem;color:rgba(255,255,255,.4);
   display:flex;justify-content:space-between;align-items:center}
@@ -989,7 +1005,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
         </span>
         <span>홈페이지<br><small>www.yajb.org</small></span>
       </div>
-      <img src="images/qr/qr-home.png" alt="홈페이지 QR 코드" loading="lazy">
     </a>
     <a class="sns-card" href="https://m.site.naver.com/1LJa1" target="_blank" rel="noopener">
       <div class="sns-head">
@@ -998,7 +1013,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
         </span>
         <span>인스타그램<br><small>복지관 소식</small></span>
       </div>
-      <img src="images/qr/qr-insta.png" alt="인스타그램 QR 코드" loading="lazy">
     </a>
     <a class="sns-card" href="https://m.site.naver.com/1LJaE" target="_blank" rel="noopener">
       <div class="sns-head">
@@ -1007,7 +1021,14 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
         </span>
         <span>페이스북<br><small>복지관 소식</small></span>
       </div>
-      <img src="images/qr/qr-facebook.png" alt="페이스북 QR 코드" loading="lazy">
+    </a>
+    <a class="sns-card" href="https://pf.kakao.com/_jHpxaX" target="_blank" rel="noopener">
+      <div class="sns-head">
+        <span class="sns-ico kko" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.9 3 2.8 6.3 2.8 10.3c0 2.6 1.7 4.9 4.3 6.2-.2.7-.7 2.5-.8 2.9-.1.5.2.5.4.4.2-.1 2.6-1.7 3.6-2.4.6.1 1.2.1 1.7.1 5.1 0 9.2-3.3 9.2-7.3S17.1 3 12 3z"/></svg>
+        </span>
+        <span>카카오톡 채널<br><small>문의·상담</small></span>
+      </div>
     </a>
   </div>
   <div class="ft-line">
@@ -1663,10 +1684,20 @@ function closeMob(){document.getElementById('mobOv').classList.remove('open');do
 /* ── admin 설정 반영 ── */
 /* ── 사이드 바로가기 링크 / 이미지 ── */
 const DEF_LINKS = [
-  {icon:'🏠', label:'복지관 홈페이지', url:'https://www.yajb.org'},
-  {icon:'📷', label:'인스타그램',     url:''},
-  {icon:'💬', label:'페이스북',       url:''}
+  {icon:'home',  label:'복지관 홈페이지', sub:'www.yajb.org',   url:'https://m.site.naver.com/1LJ9q'},
+  {icon:'insta', label:'인스타그램',      sub:'복지관 소식',     url:'https://m.site.naver.com/1LJa1'},
+  {icon:'fb',    label:'페이스북',        sub:'복지관 소식',     url:'https://m.site.naver.com/1LJaE'},
+  {icon:'kakao', label:'카카오톡 채널',   sub:'문의·상담',      url:'https://pf.kakao.com/_jHpxaX'}
 ];
+
+/* 서비스별 아이콘 (SVG) */
+const LINK_ICONS = {
+  home:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-2.5v9h-5v-6h-3v6h-5v-9H3l9-8z"/></svg>',
+  insta:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10a5 5 0 015 5v10a5 5 0 01-5 5H7a5 5 0 01-5-5V7a5 5 0 015-5zm0 2a3 3 0 00-3 3v10a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H7zm5 3.5A4.5 4.5 0 1112 16.5 4.5 4.5 0 0112 7.5zm0 2A2.5 2.5 0 1014.5 12 2.5 2.5 0 0012 9.5zM17.3 5.6a1.1 1.1 0 11-1.1 1.1 1.1 1.1 0 011.1-1.1z"/></svg>',
+  fb:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 10-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0022 12z"/></svg>',
+  kakao:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.9 3 2.8 6.3 2.8 10.3c0 2.6 1.7 4.9 4.3 6.2-.2.7-.7 2.5-.8 2.9-.1.5.2.5.4.4.2-.1 2.6-1.7 3.6-2.4.6.1 1.2.1 1.7.1 5.1 0 9.2-3.3 9.2-7.3S17.1 3 12 3z"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.6 13.4a1 1 0 011.4 0 3 3 0 004.2 0l2.8-2.8a3 3 0 10-4.2-4.2l-1 1a1 1 0 11-1.4-1.4l1-1a5 5 0 117 7l-2.8 2.8a5 5 0 01-7 0 1 1 0 010-1.4zm2.8-2.8a1 1 0 010 1.4 3 3 0 000 4.2 1 1 0 01-1.4 1.4 5 5 0 010-7l2.8-2.8a1 1 0 111.4 1.4l-2.8 2.8z"/></svg>'
+};
 
 function applyLinks(s){
   const box = document.getElementById('wzLinks');
@@ -1678,10 +1709,17 @@ function applyLinks(s){
   if(card) card.style.display='';
   const esc = v => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
                     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  box.innerHTML = links.map(l =>
-    `<a class="wz-lk" href="${esc(l.url)}" target="_blank" rel="noopener">
-       <span class="ic">${esc(l.icon||'🔗')}</span><span>${esc(l.label||'바로가기')}</span>
-     </a>`).join('');
+  box.innerHTML = links.map(l => {
+    const key = (l.icon && LINK_ICONS[l.icon]) ? l.icon : null;
+    const ico = key ? LINK_ICONS[key]
+              : (l.icon && l.icon.length <= 3 ? esc(l.icon) : LINK_ICONS.link);
+    return `<a class="wz-lk ${key ? 'lk-'+key : ''}" href="${esc(l.url)}" target="_blank" rel="noopener">
+       <span class="ic">${ico}</span>
+       <span class="tx">${esc(l.label||'바로가기')}
+         ${l.sub ? `<small>${esc(l.sub)}</small>` : ''}</span>
+       <span class="go">›</span>
+     </a>`;
+  }).join('');
 }
 
 function applySideImage(s){

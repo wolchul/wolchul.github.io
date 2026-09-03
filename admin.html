@@ -3707,28 +3707,37 @@ function layPrev(){
 
 /* ═══════ 사이드 바로가기 링크 ═══════ */
 const LK_DEFAULT = [
-  {icon:'🏠', label:'복지관 홈페이지', url:'https://www.yajb.org'},
-  {icon:'📷', label:'인스타그램',     url:''},
-  {icon:'💬', label:'페이스북',       url:''}
+  {icon:'home',  label:'복지관 홈페이지', sub:'www.yajb.org', url:'https://m.site.naver.com/1LJ9q'},
+  {icon:'insta', label:'인스타그램',      sub:'복지관 소식',   url:'https://m.site.naver.com/1LJa1'},
+  {icon:'fb',    label:'페이스북',        sub:'복지관 소식',   url:'https://m.site.naver.com/1LJaE'},
+  {icon:'kakao', label:'카카오톡 채널',   sub:'문의·상담',    url:'https://pf.kakao.com/_jHpxaX'}
 ];
+const LK_ICONS = [['home','🏠 홈페이지'],['insta','📷 인스타그램'],['fb','💬 페이스북'],
+                  ['kakao','💛 카카오톡'],['link','🔗 일반 링크']];
 let LKS = [];
 
 function lkRender(){
   const box = gi('lkRows'); if(!box) return;
   const esc = v => String(v==null?'':v).replace(/"/g,'&quot;');
   box.innerHTML = LKS.map((l,i)=>`
-    <div style="display:flex;gap:6px;align-items:center">
-      <input value="${esc(l.icon)}" onchange="lkSet(${i},'icon',this.value)"
-        style="width:52px;text-align:center;flex-shrink:0" placeholder="🔗" title="아이콘">
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <select onchange="lkSet(${i},'icon',this.value)"
+        style="width:118px;flex-shrink:0;border:1.5px solid var(--border);border-radius:7px;
+        padding:7px 6px;font-size:.76rem;font-weight:700">
+        ${LK_ICONS.map(([v,n]) =>
+          `<option value="${v}" ${l.icon===v?'selected':''}>${n}</option>`).join('')}
+      </select>
       <input value="${esc(l.label)}" onchange="lkSet(${i},'label',this.value)"
-        style="flex:0 0 130px" placeholder="표시 이름">
+        style="flex:0 0 118px" placeholder="표시 이름">
+      <input value="${esc(l.sub)}" onchange="lkSet(${i},'sub',this.value)"
+        style="flex:0 0 100px" placeholder="작은 설명">
       <input value="${esc(l.url)}" onchange="lkSet(${i},'url',this.value)"
-        style="flex:1" placeholder="https://...">
+        style="flex:1;min-width:180px" placeholder="https://...">
       <button class="btn bd bsm" onclick="lkDel(${i})" style="flex-shrink:0" title="삭제">✕</button>
     </div>`).join('');
 }
 function lkSet(i,k,v){ if(LKS[i]) LKS[i][k]=v; }
-function lkAdd(){ LKS.push({icon:'🔗',label:'',url:''}); lkRender(); }
+function lkAdd(){ LKS.push({icon:'link',label:'',sub:'',url:''}); lkRender(); }
 function lkDel(i){ LKS.splice(i,1); lkRender(); }
 
 /* 사이드 이미지 미리보기 */
@@ -3971,7 +3980,7 @@ async function loadSetForm(){
 
   // 사이드 바로가기 · 이미지
   LKS = Array.isArray(s.links) && s.links.length ? s.links.map(l=>({
-    icon:l.icon||'🔗', label:l.label||'', url:l.url||''
+    icon:l.icon||'link', label:l.label||'', sub:l.sub||'', url:l.url||''
   })) : LK_DEFAULT.map(l=>({...l}));
   lkRender();
   sv('ssideImg', s.sideImage); sv('ssideCap', s.sideImageCap);
@@ -3996,7 +4005,8 @@ async function saveSetting(){
     acc2: gi('sa2')?.value||'',
     accName: gi('san')?.value||'',
     donTel: gi('sdt')?.value||'',
-    links: LKS.map(l=>({icon:(l.icon||'🔗').trim(), label:(l.label||'').trim(), url:(l.url||'').trim()}))
+    links: LKS.map(l=>({icon:(l.icon||'link').trim(), label:(l.label||'').trim(),
+                        sub:(l.sub||'').trim(), url:(l.url||'').trim()}))
               .filter(l=>l.url),
     sideImage: (gi('ssideImg')?.value||'').trim(),
     sideImageCap: (gi('ssideCap')?.value||'').trim()
