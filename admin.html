@@ -521,8 +521,11 @@ input,select,textarea{font-family:inherit}
             <div class="drop-zone" id="dropZone">
               <input type="file" class="drop-input" id="fileInput" accept="image/*" multiple>
               <div class="drop-ico">🖼️</div>
-              <div class="drop-txt">사진은 아래 URL 방식으로 추가하세요</div>
-              <div class="drop-sub">구글 드라이브에 사진 업로드 후 링크를 복사해서 아래에 붙여넣기</div>
+              <div class="drop-txt" id="dropTitle">사진을 여기에 끌어다 놓으세요</div>
+              <div class="drop-sub" id="dropSub">여러 장을 한 번에 올릴 수 있습니다. 자동으로 크기를 줄여 저장하고 본문에 넣어드립니다.</div>
+              <button type="button" onclick="phOpen()" style="margin-top:10px;border:none;
+                background:var(--sky);color:#fff;border-radius:7px;padding:8px 18px;
+                font-size:.8rem;font-weight:800;cursor:pointer">🖼 사진 보관함 열기</button>
             </div>
             <div class="upload-progress" id="uploadProgress">
               <div class="upload-progress-bar" id="uploadBar"></div>
@@ -575,6 +578,9 @@ input,select,textarea{font-family:inherit}
                   <button onclick="toggleSrc()" type="button" id="srcBtn">HTML</button>
                 </div>
                 <div class="ins-hint">
+                  <button type="button" onclick="phOpen()" style="border:1px solid var(--sky);
+                    background:var(--sky-l);color:var(--sky);border-radius:5px;padding:4px 11px;
+                    font-size:.73rem;font-weight:800">🖼 사진 보관함</button>
                   <span id="insHint">📍 삽입 위치: 본문 (격자 밖)</span>
                   <span id="imgSel" style="margin-left:auto;color:var(--sky);font-weight:700"></span>
                   <button type="button" onclick="clearCell()" style="border:1px solid var(--border);
@@ -755,6 +761,21 @@ input,select,textarea{font-family:inherit}
               <input id="svol" placeholder="영암장복 · 2026년 소식지">
             </div>
             <div class="sf" style="border-top:2px dashed var(--border);padding-top:16px;margin-top:6px">
+              <label>⚡ 사진 자동 업로드 <small style="color:var(--text-s);font-weight:400">— 이 컴퓨터에만 저장됩니다</small></label>
+              <input id="supUrl" placeholder="업로드 서버 주소 (https://....workers.dev)">
+              <input id="supKey" type="password" placeholder="업로드 암호" style="margin-top:7px">
+              <div style="display:flex;gap:7px;margin-top:8px;align-items:center;flex-wrap:wrap">
+                <button class="btn bs bsm" onclick="saveUpCfg()">저장</button>
+                <button class="btn bo bsm" onclick="testUpCfg()">연결 확인</button>
+                <span id="supState" style="font-size:.75rem"></span>
+              </div>
+              <p style="font-size:.71rem;color:var(--text-s);margin-top:7px;line-height:1.7">
+                설정하면 기사 작성 화면에서 <strong>사진을 끌어다 놓기만 해도</strong> 자동으로 올라갑니다.<br>
+                보안을 위해 이 값은 서버가 아닌 <strong>지금 쓰는 브라우저에만</strong> 저장됩니다.
+                다른 컴퓨터에서도 쓰시려면 그곳에서 한 번 더 입력해 주세요.
+              </p>
+            </div>
+            <div class="sf">
               <label>🔗 사이드 바로가기 링크 <small style="color:var(--text-s);font-weight:400">— 주소를 비우면 그 줄은 표시되지 않습니다</small></label>
               <div id="lkRows" style="display:flex;flex-direction:column;gap:8px"></div>
               <button class="btn bo bsm" onclick="lkAdd()" style="margin-top:8px">+ 링크 추가</button>
@@ -848,6 +869,41 @@ input,select,textarea{font-family:inherit}
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
       <button class="btn bd bsm" onclick="deleteSp()">삭제</button>
       <button class="btn bo bsm" onclick="closeSpDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 사진 보관함 (편집 중에 바로 사용) -->
+<div class="conf" id="phModal">
+  <div class="conf-box" style="max-width:760px;width:94vw">
+    <h3 style="display:flex;align-items:center;gap:8px">🖼 사진 보관함
+      <button onclick="gi('phModal').classList.remove('open')"
+        style="margin-left:auto;background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text-s)">✕</button>
+    </h3>
+    <p style="margin-bottom:12px">사진을 클릭하면 <strong>글 쓰던 자리에 바로</strong> 들어갑니다. 편집 화면은 그대로 유지됩니다.</p>
+
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <select id="phmFolder" onchange="phLoad()"
+        style="border:1.5px solid var(--border);border-radius:7px;padding:7px 10px;font-size:.79rem;font-weight:700">
+        <option value="images/vol3">images/vol3 (기사 사진)</option>
+        <option value="images">images (로고·배너)</option>
+      </select>
+      <button class="btn bo bsm" onclick="phLoad()">🔄 새로고침</button>
+      <a class="btn bp bsm" id="phUpLink" href="#" target="_blank"
+         style="text-decoration:none">⬆ 새 사진 올리기 (새 탭)</a>
+      <span id="phmStatus" style="font-size:.75rem;color:var(--text-s)"></span>
+    </div>
+
+    <div id="phmGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));
+      gap:9px;max-height:46vh;overflow:auto;padding:4px;background:var(--bg);border-radius:8px"></div>
+
+    <div style="background:var(--sky-l);border-radius:7px;padding:9px 12px;margin-top:11px;font-size:.73rem;color:var(--navy)">
+      💡 새 사진은 <strong>새 탭</strong>에서 올린 뒤 <strong>🔄 새로고침</strong>을 누르면 목록에 나타납니다.
+      (반영까지 1~2분 걸릴 수 있습니다)
+    </div>
+
+    <div class="ca">
+      <button class="btn bo" onclick="gi('phModal').classList.remove('open')">닫기</button>
     </div>
   </div>
 </div>
@@ -1187,7 +1243,7 @@ function go(id,btn){
   if(btn) btn.classList.add('on');
   if(id==='plist') rTbl();
   if(id==='pdash'){ rDash(); updateFbs(); }
-  if(id==='pset') loadSetForm();
+  if(id==='pset'){ loadSetForm(); loadUpCfg(); }
   if(id==='pdesign') loadDesign();
   if(id==='psponsor') rSpTbl();
 }
@@ -1683,26 +1739,27 @@ function initDropZone() {
 }
 
 function handleFiles(files) {
-  // localStorage 용량 한도로 인해 Base64 직접 저장 불가
-  // 구글 드라이브 업로드 후 URL 사용 안내
-  if(!files.length) return;
-  const names = files.map(f=>f.name).join(', ');
-  toast('📎 사진은 구글 드라이브에 업로드 후 URL을 입력해주세요.', 'err');
+  const imgs = files.filter(f => /^image\//.test(f.type));
+  if(!imgs.length){ toast('이미지 파일만 올릴 수 있습니다.','err'); return; }
 
-  // 안내 메시지를 드롭존에 표시
+  if(upReady()){
+    uploadFiles(imgs);          // 자동 업로드
+    return;
+  }
+
+  // 업로드 서버가 없으면 안내
+  toast('사진은 🖼 사진 보관함에서 올린 뒤 골라주세요.','err');
   const zone = document.querySelector('.drop-zone') || gi('dropZone');
-  if(zone) {
-    const guide = zone.querySelector('.drop-guide-msg');
-    if(!guide) {
-      const msg = document.createElement('div');
-      msg.className = 'drop-guide-msg';
-      msg.style.cssText = 'margin-top:10px;padding:10px 14px;background:#fff3e0;border:1.5px solid #e8960a;border-radius:8px;font-size:.75rem;color:#7a4400;text-align:left;line-height:1.7';
-      msg.innerHTML = '📌 <strong>사진 추가 방법</strong><br>'
-        + '① <a href="https://drive.google.com" target="_blank" style="color:var(--sky)">Google Drive</a>에 사진 업로드<br>'
-        + '② 사진 우클릭 → 공유 → <strong>링크가 있는 모든 사용자</strong> → 링크 복사<br>'
-        + '③ 아래 URL 입력창에 붙여넣기 → 삽입 클릭';
-      zone.appendChild(msg);
-    }
+  if(zone && !zone.querySelector('.drop-guide-msg')){
+    const msg = document.createElement('div');
+    msg.className = 'drop-guide-msg';
+    msg.style.cssText = 'margin-top:10px;padding:11px 14px;background:var(--sky-l);'
+      + 'border:1.5px solid var(--sky);border-radius:8px;font-size:.75rem;color:var(--navy);'
+      + 'text-align:left;line-height:1.8';
+    msg.innerHTML = '📌 <strong>자동 업로드를 켜려면</strong><br>'
+      + '⚙️ 사이트 설정 → <strong>사진 자동 업로드</strong> 에 서버 주소와 암호를 입력하세요.<br>'
+      + '설정 전에는 🖼 사진 보관함에서 올린 뒤 고르시면 됩니다.';
+    zone.appendChild(msg);
   }
 }
 
@@ -1997,6 +2054,199 @@ function cellMerge(delta){
 }
 
 /* 칸 선택 · 사진 선택 · 끌어 옮기기 연결 */
+
+
+
+/* 업로드 서버 설정 (브라우저에만 보관) */
+function loadUpCfg(){
+  const u = gi('supUrl'), k = gi('supKey');
+  if(u) u.value = localStorage.getItem('wc_up_url') || '';
+  if(k) k.value = localStorage.getItem('wc_up_key') || '';
+  const st = gi('supState');
+  if(st) st.textContent = (u && u.value && k && k.value) ? '설정됨' : '';
+}
+function saveUpCfg(){
+  const url = (gi('supUrl').value||'').trim().replace(/\/+$/,'');
+  const key = (gi('supKey').value||'').trim();
+  if(url && !/^https:\/\//.test(url)){ toast('주소는 https:// 로 시작해야 합니다.','err'); return; }
+  localStorage.setItem('wc_up_url', url);
+  localStorage.setItem('wc_up_key', key);
+  toast('저장했습니다. 새로고침하면 적용됩니다.','ok');
+  const st = gi('supState');
+  if(st){ st.textContent = '저장됨 — 새로고침 필요'; st.style.color='var(--green)'; }
+}
+async function testUpCfg(){
+  const url = (gi('supUrl').value||'').trim().replace(/\/+$/,'');
+  const key = (gi('supKey').value||'').trim();
+  const st = gi('supState');
+  if(!url || !key){ st.textContent='주소와 암호를 모두 입력해 주세요.'; st.style.color='var(--red)'; return; }
+  st.textContent = '확인 중...'; st.style.color='var(--text-s)';
+  try{
+    // 데이터 없이 보내 인증만 확인합니다
+    const r = await fetch(url, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ key })
+    });
+    const o = await r.json().catch(()=>({}));
+    if(r.status === 401){ st.textContent='❌ 암호가 다릅니다.'; st.style.color='var(--red)'; }
+    else if(r.status === 400){ st.textContent='✅ 연결 정상 (암호 확인됨)'; st.style.color='var(--green)'; }
+    else if(r.status === 500){ st.textContent='❌ 서버에 토큰이 설정되지 않았습니다.'; st.style.color='var(--red)'; }
+    else { st.textContent='응답: '+r.status+' '+(o.error||''); st.style.color='var(--text-s)'; }
+  }catch(e){
+    st.textContent = '❌ 서버에 연결할 수 없습니다. 주소를 확인해 주세요.';
+    st.style.color = 'var(--red)';
+  }
+}
+
+/* ═══════ 사진 자동 업로드 (Cloudflare Worker 중계) ═══════
+   사진을 끌어다 놓거나 고르면 자동으로 줄여서 GitHub에 올린 뒤
+   글 쓰던 자리에 바로 넣어줍니다. */
+const UP_URL = localStorage.getItem('wc_up_url') || '';
+const UP_KEY = localStorage.getItem('wc_up_key') || '';
+const UP_MAXW = 1600;    // 가로 최대 픽셀 — 웹진에는 이 정도면 충분합니다
+const UP_QUALITY = 0.85;
+
+function upReady(){ return !!(UP_URL && UP_KEY); }
+
+/* 사진을 줄여 base64 로 만듭니다 (용량·전송량 절약) */
+function shrinkImage(file){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('이미지를 열지 못했습니다.'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > UP_MAXW){ h = Math.round(h * UP_MAXW / w); w = UP_MAXW; }
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h);
+        cx.drawImage(img, 0, 0, w, h);
+        const isPng = /png$/i.test(file.type);
+        const url = cv.toDataURL(isPng ? 'image/png' : 'image/jpeg', UP_QUALITY);
+        resolve({ base64: url.split(',')[1], ext: isPng ? 'png' : 'jpg', w, h });
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* 한 장 올리기 */
+async function uploadOne(file, folder){
+  const { base64, ext } = await shrinkImage(file);
+  const res = await fetch(UP_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      key: UP_KEY,
+      folder: folder || 'images/vol3',
+      filename: (file.name || 'photo') + '.' + ext,
+      dataBase64: base64
+    })
+  });
+  const out = await res.json().catch(() => ({}));
+  if(!res.ok || !out.ok) throw new Error(out.error || ('업로드 실패 (' + res.status + ')'));
+  return out.path;
+}
+
+/* 여러 장을 차례로 올리고 본문에 넣습니다 */
+async function uploadFiles(files){
+  if(!upReady()){
+    toast('업로드 서버가 설정되지 않았습니다. 설정 화면에서 주소와 암호를 입력해 주세요.','err');
+    return;
+  }
+  const zone = gi('dropZone');
+  const st = document.createElement('div');
+  st.style.cssText = 'margin-top:10px;font-size:.8rem;font-weight:700;color:var(--sky)';
+  if(zone) zone.appendChild(st);
+
+  let ok = 0, fail = 0;
+  for(let i = 0; i < files.length; i++){
+    st.textContent = `⏳ 올리는 중... (${i+1}/${files.length}) ${files[i].name}`;
+    try{
+      const path = await uploadOne(files[i], 'images/vol3');
+      insertImageInto(path);
+      addPreview(path, files[i].name);
+      ok++;
+    }catch(e){
+      console.error(e);
+      fail++;
+      toast('❌ ' + files[i].name + ' : ' + e.message, 'err');
+    }
+  }
+  st.textContent = fail ? `✅ ${ok}장 완료 · ❌ ${fail}장 실패` : `✅ ${ok}장 모두 올렸습니다.`;
+  setTimeout(() => st.remove(), 4000);
+  if(ok) toast(`✅ 사진 ${ok}장을 올려 본문에 넣었습니다.`, 'ok');
+  const g = gi('phmGrid'); if(g) delete g.dataset.loaded;   // 보관함 목록 갱신
+}
+
+/* ═══════ 편집 중 사진 보관함 ═══════
+   글을 쓰다가 화면을 벗어나지 않고 사진을 넣을 수 있습니다. */
+const REPO = 'wolchul/wolchul.github.io';
+
+function phOpen(){
+  saveCaret();                      // 지금 커서 자리를 기억해 둡니다
+  gi('phModal').classList.add('open');
+  phSyncUpLink();
+  if(!gi('phmGrid').dataset.loaded) phLoad();
+}
+
+function phSyncUpLink(){
+  const f = gi('phmFolder').value;
+  const a = gi('phUpLink');
+  if(a) a.href = 'https://github.com/' + REPO + '/upload/main/' + f;
+}
+
+async function phLoad(){
+  const folder = gi('phmFolder').value;
+  const grid = gi('phmGrid'), st = gi('phmStatus');
+  phSyncUpLink();
+  st.textContent = '불러오는 중...';
+  grid.innerHTML = '';
+  try{
+    const r = await fetch('https://api.github.com/repos/' + REPO + '/contents/' + folder);
+    if(!r.ok) throw new Error('GitHub 응답 ' + r.status);
+    const data = await r.json();
+    const files = data.filter(f => f.type==='file' && /\.(jpe?g|png|gif|webp)$/i.test(f.name));
+    if(!files.length){
+      st.textContent = '';
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:26px;font-size:.8rem;color:var(--text-s)">'
+        + '이 폴더에 사진이 없습니다.<br>위의 <strong>⬆ 새 사진 올리기</strong>로 먼저 올려주세요.</div>';
+      return;
+    }
+    st.textContent = '✅ ' + files.length + '장';
+    grid.innerHTML = files.map(f => {
+      const path = folder + '/' + f.name;
+      const nm = f.name.length > 16 ? f.name.slice(0,14) + '…' : f.name;
+      return `<div onclick="phPick('${path.replace(/'/g,"\\'")}')" title="${f.name}"
+        style="cursor:pointer;border:2px solid var(--border);border-radius:7px;overflow:hidden;background:#fff"
+        onmouseover="this.style.borderColor='var(--sky)'"
+        onmouseout="this.style.borderColor='var(--border)'">
+        <img src="${path}" alt="${f.name}" loading="lazy"
+          style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+        <div style="font-size:.64rem;padding:4px;text-align:center;color:var(--text-s)">${nm}</div>
+      </div>`;
+    }).join('');
+    grid.dataset.loaded = '1';
+  }catch(e){
+    st.textContent = '';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:22px;font-size:.78rem;color:var(--red)">'
+      + '❌ 목록을 불러오지 못했습니다: ' + e.message
+      + '<br><span style="color:var(--text-s);font-size:.72rem">잠시 후 다시 시도해 주세요.</span></div>';
+  }
+}
+
+/* 사진을 골라 커서 자리에 넣습니다 */
+function phPick(path){
+  gi('phModal').classList.remove('open');
+  insertImageInto(path);
+  addPreview(path, '');
+  toast('사진을 넣었습니다. 크기 버튼으로 조절하세요.','ok');
+}
+
 /* 격자 선택을 풀어 본문 자리에 넣도록 되돌립니다 */
 function clearCell(){
   const ed = gi('cedit'); if(!ed) return;
