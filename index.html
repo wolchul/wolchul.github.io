@@ -411,6 +411,37 @@ img{max-width:100%}
 .wz-hd-t{font-size:calc(1.5rem*var(--fs));font-weight:900;color:var(--c1);margin:4px 0 5px}
 .wz-hd-d{font-size:calc(.83rem*var(--fs));color:var(--ink-s)}
 
+/* 웹진 도구 줄 */
+.wz-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
+.wz-tool{border:1.5px solid var(--line);background:var(--white);color:var(--ink-m);
+  border-radius:20px;padding:7px 15px;font-size:calc(.78rem*var(--fs));font-weight:700;
+  font-family:inherit;cursor:pointer;transition:all .16s}
+.wz-tool:hover{border-color:var(--c1);color:var(--c1);background:var(--c-light)}
+.wz-fz{display:flex;align-items:center;gap:5px;margin-right:4px}
+.wz-fz-l{font-size:calc(.74rem*var(--fs));color:var(--ink-s);font-weight:700;margin-right:2px}
+.wz-fz-b{width:34px;height:34px;border:1.5px solid var(--line);background:var(--white);
+  color:var(--ink-m);border-radius:8px;font-weight:800;font-family:inherit;cursor:pointer;
+  transition:all .16s}
+.wz-fz-b:hover{border-color:var(--c1);color:var(--c1)}
+.wz-fz-b.on{background:var(--c1);border-color:var(--c1);color:#fff}
+
+/* 인쇄 */
+@media print{
+  #hd,.hero,.filter-bar,.wz-side,.wz-tools,.wz-tts,.donor,footer,
+  .a11y-panel,.mob-ov,.wz-zoom,.btn-a11y,#toTop{display:none !important}
+  body{background:#fff}
+  .wz{display:block}
+  #articles.inner{max-width:100%;padding:0}
+  .wz-art{break-inside:avoid;page-break-inside:avoid;box-shadow:none;
+    border:1px solid #ccc;margin-bottom:14px}
+  .wz-art.span-half{grid-column:1 / -1}
+  #wzList{display:block}
+  .imgtxt-body{display:block !important}
+  .imgtxt-tog{display:none !important}
+  a[href]:after{content:''}
+  @page{size:A4;margin:14mm 12mm}
+}
+
 /* 기사 목록 — 2단 배치 지원 */
 #wzList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
 .wz-art.span-full{grid-column:1 / -1}
@@ -725,7 +756,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
     </a>
     <nav class="gnb">
       <a href="index.html" class="on">소식지 홈</a>
-      <a href="#articles">기사 목록</a>
       <a href="#donor">후원 안내</a>
     </nav>
     <div class="gnb-act">
@@ -746,7 +776,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
     <button class="mob-x" onclick="closeMob()">✕</button>
     <div class="mob-logo">월출어람</div>
     <a href="index.html" class="on">소식지 홈</a>
-    <a href="#articles" onclick="closeMob()">기사 목록</a>
     <a href="#donor" onclick="closeMob()">후원 안내</a>
     <a href="sponsor.html">💚 후원 신청</a>
     <a href="admin.html" style="color:#999;margin-top:8px;border-top:1px solid var(--line);padding-top:14px">🔒 관리자</a>
@@ -812,6 +841,17 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
           <div class="sec-eyebrow">Webzine</div>
           <h2 class="wz-hd-t" id="wzTitle">전체 기사</h2>
           <p class="wz-hd-d" id="wzSub"></p>
+          <div class="wz-tools">
+            <div class="wz-fz">
+              <span class="wz-fz-l">글자 크기</span>
+              <button onclick="setFz('')"   id="fzA" class="wz-fz-b on">가</button>
+              <button onclick="setFz('l')"  id="fzB" class="wz-fz-b" style="font-size:1.05rem">가</button>
+              <button onclick="setFz('x')"  id="fzC" class="wz-fz-b" style="font-size:1.2rem">가</button>
+            </div>
+            <button class="wz-tool" onclick="shareKakao()">💬 카카오톡 공유</button>
+            <button class="wz-tool" onclick="copyLink()">🔗 주소 복사</button>
+            <button class="wz-tool" onclick="printIssue()">🖨 인쇄 · PDF</button>
+          </div>
         </div>
         <div id="wzList"></div>
         <div class="empty" id="emptyBox" style="display:none">
@@ -912,7 +952,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
     <div class="ft-col">
       <h4>바로가기</h4>
       <ul>
-        <li><a href="#articles">기사 목록</a></li>
         <li><a href="#donor">후원 안내</a></li>
         <li><a href="sponsor.html">후원 신청</a></li>
         <li><a href="privacy.html">개인정보처리방침</a></li>
@@ -1007,6 +1046,7 @@ window.addEventListener('load', () => {
   document.getElementById('loadingBox').style.display = 'none';
   document.getElementById('wzArea').style.display = '';
   render();
+  applyIssueParam();
   applySettings();
   try{ applyDesign(JSON.parse(localStorage.getItem('wc_design')||'null')); }catch{}
   applySettingsFromServer();   // 서버 설정으로 덮어쓰기
@@ -1640,6 +1680,108 @@ function applySideImage(s){
   if(cap) cap.textContent = s.sideImageCap || '';
   img.onerror = () => { card.style.display='none'; };
   card.style.display='';
+}
+
+
+/* ═══════ 웹진 도구 — 글자 크기 · 공유 · 인쇄 ═══════ */
+
+/* 글자 크기 (기억됩니다) */
+function setFz(v){
+  const r = document.documentElement;
+  r.classList.remove('fz-l','fz-x');
+  if(v) r.classList.add('fz-' + v);
+  try{ localStorage.setItem('wc_fz', v); }catch{}
+  ['fzA','fzB','fzC'].forEach((id, i) => {
+    const b = document.getElementById(id);
+    if(b) b.classList.toggle('on', ['', 'l', 'x'][i] === v);
+  });
+}
+(function(){
+  try{
+    const v = localStorage.getItem('wc_fz');
+    if(v) setTimeout(() => setFz(v), 0);
+  }catch{}
+})();
+
+/* 지금 보고 있는 호의 주소 */
+function issueURL(){
+  const u = new URL(location.href);
+  u.hash = '';
+  if(curMonth && curMonth !== 'all') u.searchParams.set('issue', curMonth);
+  else u.searchParams.delete('issue');
+  return u.toString();
+}
+
+/* 카카오톡 공유 */
+function shareKakao(){
+  const url = issueURL();
+  const title = (document.getElementById('wzTitle')?.textContent || '월출어람')
+    + ' | 영암군장애인종합복지관';
+  // 휴대폰에서는 기기의 공유 기능을 씁니다 (카톡·문자·메일 모두 가능)
+  if(navigator.share){
+    navigator.share({ title, text: title, url }).catch(()=>{});
+    return;
+  }
+  // PC 에서는 카카오톡 웹 공유창을 엽니다
+  const w = window.open(
+    'https://sharer.kakao.com/talk/friends/picker/link?app_key=&url=' + encodeURIComponent(url),
+    '_blank', 'width=460,height=600');
+  if(!w){ copyLink(); return; }
+  setTimeout(() => { if(w.closed === false) return; }, 800);
+}
+
+/* 주소 복사 */
+async function copyLink(){
+  const url = issueURL();
+  try{
+    await navigator.clipboard.writeText(url);
+    showToast('🔗 주소를 복사했습니다. 카카오톡에 붙여넣어 주세요.');
+  }catch{
+    const t = document.createElement('textarea');
+    t.value = url; document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); showToast('🔗 주소를 복사했습니다.'); }
+    catch{ prompt('아래 주소를 복사해 주세요', url); }
+    t.remove();
+  }
+}
+
+/* 간단한 알림 */
+function showToast(msg){
+  let el = document.getElementById('wzToast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'wzToast';
+    el.style.cssText = 'position:fixed;left:50%;bottom:30px;transform:translateX(-50%);'
+      + 'background:#1b4332;color:#fff;padding:13px 22px;border-radius:26px;'
+      + 'font-size:.86rem;font-weight:700;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.28);'
+      + 'opacity:0;transition:opacity .2s';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
+}
+
+/* 인쇄 — 접힌 '사진 속 글'을 펼치고 인쇄한 뒤 되돌립니다 */
+function printIssue(){
+  const opened = [];
+  document.querySelectorAll('.imgtxt-body').forEach(b => {
+    if(!b.classList.contains('open')){ b.classList.add('open'); opened.push(b); }
+  });
+  showToast('🖨 인쇄 창을 준비하고 있습니다...');
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => opened.forEach(b => b.classList.remove('open')), 400);
+  }, 300);
+}
+
+/* 주소에 ?issue=2026-09 가 있으면 그 호를 바로 보여줍니다 */
+function applyIssueParam(){
+  try{
+    const v = new URL(location.href).searchParams.get('issue');
+    if(v && /^\d{4}-\d{2}$/.test(v)){ curMonth = v; monthSig = ''; }
+  }catch{}
 }
 
 /* ── 디자인(색상·배경) 적용 ── */

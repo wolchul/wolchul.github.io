@@ -711,7 +711,10 @@ input,select,textarea{font-family:inherit}
             <option value="">전체 상태</option>
             <option value="신청">신청</option>
             <option value="확인중">확인중</option>
+            <option value="연락완료">연락완료</option>
+            <option value="일정확정">일정확정</option>
             <option value="완료">완료</option>
+            <option value="취소">취소</option>
           </select>
           <button class="btn bo bsm" id="spMaskBtn" onclick="toggleSpMask()">🔒 개인정보 가리기 ON</button>
           <button class="btn bo bsm" onclick="exportCsv()">📥 엑셀 다운로드</button>
@@ -964,7 +967,10 @@ input,select,textarea{font-family:inherit}
       <select id="spStatusSel" style="border:1.5px solid var(--border);border-radius:8px;padding:6px 11px;font-size:.78rem;background:var(--bg);color:var(--text);outline:none">
         <option value="신청">신청</option>
         <option value="확인중">확인중</option>
+        <option value="연락완료">연락완료</option>
+        <option value="일정확정">일정확정</option>
         <option value="완료">완료</option>
+        <option value="취소">취소</option>
       </select>
       <button class="btn bs bsm" onclick="updateSpStatus()">상태 저장</button>
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
@@ -1523,7 +1529,7 @@ function rTbl(){
 
 /* ★ 후원 신청 목록 */
 const TYPE_LABEL={regular:'💳 정기 후원',once:'🎁 일시 후원',goods:'📦 물품 후원',vol:'🙌 자원봉사'};
-const STATUS_COLOR={신청:'#5bb8e8',확인중:'#e8960a',완료:'#2e8b57'};
+const STATUS_COLOR={신청:'#5bb8e8',확인중:'#e8960a',연락완료:'#7c5cbf',일정확정:'#1a6b8b',완료:'#2e8b57',취소:'#999'};
 let curSpId=null;
 
 /* 개인정보 마스킹 유틸 */
@@ -1614,7 +1620,10 @@ function openSpDetail(id){
     sec1.push(['물품 종류', kinds.length ? kinds.join(', ') : '—']);
     sec1.push(['물품 정보', s.goodsInfo||'—']);
   }
-  if(s.type==='vol') sec1.push(['봉사 내용', s.volInfo||'—']);
+  if(s.type==='vol'){
+    sec1.push(['봉사 내용', s.volInfo||'—']);
+    sec1.push(['전하고 싶은 말씀', s.message||'—']);
+  }
 
   // 2. 신청인(기부자) 정보
   const sec2=[
