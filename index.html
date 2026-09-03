@@ -487,6 +487,21 @@ img{max-width:100%}
   .wz-body .wg .wc{padding:13px}
 }
 
+/* 사진 속 글자 — 접었다 펴기 */
+.wz-body figure.imgtxt{margin:16px 0}
+.wz-body figure.imgtxt img{display:block;margin:0 auto;max-width:100%;height:auto;border-radius:var(--r)}
+.imgtxt-cap{margin-top:8px}
+.imgtxt-tog{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);
+  background:var(--white);color:var(--ink-m);border-radius:20px;padding:6px 14px;
+  font-size:calc(.76rem*var(--fs));font-weight:700;font-family:inherit;cursor:pointer;transition:all .16s}
+.imgtxt-tog:hover{border-color:var(--c1);color:var(--c1)}
+.imgtxt-body{display:none;margin-top:10px;background:var(--c-light);
+  border-left:4px solid var(--c3);border-radius:0 var(--r) var(--r) 0;
+  padding:14px 17px;font-size:calc(.88rem*var(--fs));line-height:1.85;color:var(--ink-m)}
+.imgtxt-body.open{display:block}
+.imgtxt-body p{margin-bottom:10px}
+.imgtxt-body p:last-child{margin-bottom:0}
+
 /* 기사별 읽어주기 */
 .wz-tts{display:flex;align-items:center;gap:7px;margin-top:16px;padding-top:14px;
   border-top:1px dashed var(--line);flex-wrap:wrap}
@@ -1128,6 +1143,15 @@ function render() {
     tmp.innerHTML = a.content || `<p>${a.summary||''}</p>`;
     // 격자(표) 안의 사진은 배치를 살려 그대로 두고, 격자 밖 사진만 따로 모읍니다
     tmp.querySelectorAll('.wg img').forEach(im => im.setAttribute('loading','lazy'));
+    // 사진 속 글자 — 펼치기 버튼을 붙입니다
+    tmp.querySelectorAll('figure.imgtxt .imgtxt-cap').forEach((cap, n) => {
+      if(cap.querySelector('.imgtxt-tog')) return;
+      const b = document.createElement('button');
+      b.className = 'imgtxt-tog';
+      b.type = 'button';
+      b.textContent = '📄 사진 속 글 보기';
+      cap.insertBefore(b, cap.firstChild);
+    });
     // 방문자가 본문에 글을 쓰지 못하도록 (예전에 저장된 기사 대비)
     tmp.querySelectorAll('[contenteditable]').forEach(el => el.setAttribute('contenteditable','false'));
     const loose = [...tmp.querySelectorAll('img')].filter(im => !im.closest('.wg'));
@@ -1177,6 +1201,16 @@ function render() {
     </article>`;
   }).join('');
 }
+
+/* 사진 속 글 펼치기 */
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('.imgtxt-tog');
+  if(!b) return;
+  const body = b.parentElement.querySelector('.imgtxt-body');
+  if(!body) return;
+  const open = body.classList.toggle('open');
+  b.textContent = open ? '📄 사진 속 글 접기' : '📄 사진 속 글 보기';
+});
 
 /* 본문·갤러리의 사진을 클릭하면 확대 (한 곳에서 처리) */
 document.addEventListener('click', e => {
@@ -1330,7 +1364,18 @@ function ttsToggle(id){
   const a = ARTS.find(x => String(x.id) === String(id));
   if(!a){ return; }
   const body = document.getElementById('body-'+id);
-  const text = (a.title||'') + '. ' + (a.summary||'') + ' ' + (body ? body.innerText : '');
+  let bodyText = '';
+  if(body){
+    // 접혀 있는 '사진 속 글자'도 함께 읽습니다
+    const clone = body.cloneNode(true);
+    clone.querySelectorAll('.imgtxt-body').forEach(el => el.classList.add('open'));
+    clone.querySelectorAll('.imgtxt-tog').forEach(el => el.remove());
+    document.body.appendChild(clone);
+    clone.style.cssText = 'position:absolute;left:-9999px;top:0';
+    bodyText = clone.innerText;
+    clone.remove();
+  }
+  const text = (a.title||'') + '. ' + (a.summary||'') + ' ' + bodyText;
   startTTS(text.trim());
 }
 
