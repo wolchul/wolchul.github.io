@@ -209,10 +209,32 @@ input,select,textarea{font-family:inherit}
 
 /* 본문 에디터 */
 .ce{border:1.5px solid var(--border);border-radius:8px;overflow:hidden}
-.ct{background:var(--bg);border-bottom:1px solid var(--border);padding:7px 10px;display:flex;gap:5px;flex-wrap:wrap;
+/* 도구 모음 — 기능별로 묶어 표시 */
+.ct{background:var(--bg);border-bottom:1px solid var(--border);padding:8px 10px;
+  display:flex;gap:7px;flex-wrap:wrap;align-items:stretch;
   position:sticky;top:0;z-index:5}
-.ct button{background:var(--white);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:.73rem;font-weight:700;color:var(--text-m)}
+.ct-g{display:flex;align-items:center;gap:4px;background:var(--white);
+  border:1px solid var(--border);border-radius:9px;padding:5px 8px 5px 6px;
+  position:relative;flex-wrap:wrap}
+.ct-gl{font-size:.63rem;font-weight:800;color:var(--text-s);letter-spacing:.02em;
+  background:var(--bg);border-radius:5px;padding:3px 7px;margin-right:2px;flex-shrink:0;
+  border:1px solid var(--border)}
+.ct button{background:var(--white);border:1px solid var(--border);border-radius:5px;
+  padding:4px 9px;font-size:.73rem;font-weight:700;color:var(--text-m);white-space:nowrap}
 .ct button:hover{background:var(--sky-l);color:var(--sky);border-color:var(--sky)}
+.ct-sel{border:1px solid var(--border);border-radius:5px;padding:4px 6px;
+  font-size:.72rem;font-weight:700;color:var(--text-m);background:var(--white);
+  font-family:inherit;cursor:pointer;outline:none}
+.ct button.ct-gold{border-color:var(--gold);color:var(--gold)}
+.ct button.ct-gold:hover{background:var(--gold-l)}
+.ct button.ct-pink{border-color:#c2185b;color:#c2185b}
+.ct button.ct-pink:hover{background:#fde8ef}
+.ct button.ct-red{border-color:#e05c5c;color:#e05c5c}
+.ct button.ct-red:hover{background:#fdeaea}
+@media(max-width:1200px){
+  .ct-gl{font-size:.6rem;padding:2px 5px}
+  .ct button{padding:4px 7px;font-size:.7rem}
+}
 .ins-hint{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:.72rem;
   color:var(--text-s);background:#f7f9fb;border-bottom:1px solid var(--border);
   position:sticky;top:36px;z-index:4}
@@ -628,74 +650,100 @@ input,select,textarea{font-family:inherit}
               <label>본문 내용 <span class="req">*</span></label>
               <div class="ce">
                 <div class="ct">
-                  <button onclick="fmt('bold')" type="button"><b>굵게</b></button>
-                  <button onclick="fmt('italic')" type="button"><i>기울임</i></button>
-                  <button onclick="fmt('underline')" type="button"><u>밑줄</u></button>
-                  <button onclick="iTag('h3')" type="button">제목</button>
-                  <button onclick="iTag('h4')" type="button">소제목</button>
-                  <button onclick="iTag('p')" type="button">단락</button>
-                  <button onclick="fmt('insertUnorderedList')" type="button">• 목록</button>
-                  <button onclick="fmt('insertHorizontalRule')" type="button">구분선</button>
-                  <span class="ct-sep"></span>
-                  <button onclick="alignText('Left')" type="button" title="왼쪽 정렬">≡◧</button>
-                  <button onclick="alignText('Center')" type="button" title="가운데 정렬">≡▣</button>
-                  <button onclick="alignText('Right')" type="button" title="오른쪽 정렬">≡◨</button>
-                  <button onclick="alignText('Full')" type="button" title="양쪽 맞춤">≡▤</button>
-                  <button onclick="cellVAlign()" type="button" title="칸 안에서 위/가운데/아래">⇅ 칸 세로</button>
-                  <span class="ct-sep"></span>
-                  <button onclick="toggleSelMode()" type="button" id="selModeBtn"
-                    title="켜면 마우스로 끌어서 여러 칸을 고르고, 칸 내용을 옮길 수 있습니다">▤ 칸 선택</button>
-                  <button onclick="gridAsk()" type="button" title="표 넣기">▦ 표 넣기</button>
-                  <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
-                  <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
-                  <button onclick="colAdd()" type="button" title="가로 칸 하나 늘리기">＋칸</button>
-                  <button onclick="cellClear()" type="button" title="선택한 칸 내용 비우기 (Ctrl+클릭으로 여러 칸 선택)">칸 비우기</button>
-                  <button onclick="cellSplitH()" type="button" title="선택한 칸을 좌우 둘로 나누기">⊟ 칸 나누기</button>
-                  <button onclick="cellMergeSel()" type="button" title="Ctrl+클릭으로 고른 칸들을 하나로 합치기">⊡ 칸 합치기</button>
-                  <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥ 넓히기</button>
-                  <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤ 좁히기</button>
-                  <button onclick="const n=repairGrids(); toast(n?('어긋난 '+n+'곳을 바로잡았습니다.'):'표에 이상이 없습니다.','ok')"
-                    type="button" title="표가 깨졌을 때 모양 바로잡기">🔧 표 복구</button>
-                  <button onclick="blockMove(-1)" type="button" title="이 표(또는 문단)를 위로 옮기기">▲ 위로</button>
-                  <button onclick="blockMove(1)" type="button" title="이 표(또는 문단)를 아래로 옮기기">▼ 아래로</button>
-                  <button onclick="blockAround('before')" type="button" title="표 위에 글 쓸 줄 넣기">↑글줄</button>
-                  <button onclick="blockAround('after')" type="button" title="표 아래에 글 쓸 줄 넣기">↓글줄</button>
-                  <button onclick="gridDel()" type="button" title="표 전체 삭제">▨ 표 삭제</button>
-                  <span class="ct-sep"></span>
-                  <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
-                  <button onclick="bgPick('grid')" type="button" title="표 전체 배경색">🎨 표 배경</button>
-                  <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
-                  <button onclick="lineDlg()" type="button" title="표 선 모양·굵기·색상">┼ 선 모양</button>
-                  <button onclick="btnDlg()" type="button" title="자세히 보기 같은 버튼 넣기"
-                    style="border-color:#c2185b;color:#c2185b;font-weight:800">🔘 버튼</button>
-                  <span class="ct-sep"></span>
-                  <button onclick="imgSize('s')" type="button" title="선택한 사진 작게">🖼 작게</button>
-                  <button onclick="imgSize('m')" type="button">보통</button>
-                  <button onclick="imgSize('l')" type="button">크게</button>
-                  <button onclick="imgSize('f')" type="button">꽉</button>
-                  <button onclick="imgAlign('left')" type="button" title="왼쪽 정렬">◧</button>
-                  <button onclick="imgAlign('center')" type="button" title="가운데">▣</button>
-                  <button onclick="imgAlign('right')" type="button" title="오른쪽">◨</button>
-                  <button onclick="imgSizeDlg()" type="button" title="사진 크기를 숫자로 지정">📐 크기 입력</button>
-                  <button onclick="imgAlt()" type="button" title="사진 속 글자를 입력하면 음성으로 읽어줍니다"
-                    style="border-color:var(--gold);color:var(--gold);font-weight:800">🔊 사진 글자</button>
-                  <span class="ct-sep"></span>
-                  <select onchange="setFontSize(this.value);this.selectedIndex=0"
-                    style="border:1px solid var(--border);border-radius:5px;padding:3px 6px;
-                    font-size:.73rem;font-weight:700;color:var(--text-m);background:var(--white)">
-                    <option value="">글자 크기</option>
-                    <option value="11">11px 아주 작게</option>
-                    <option value="13">13px 작게</option>
-                    <option value="15">15px 보통</option>
-                    <option value="17">17px 조금 크게</option>
-                    <option value="20">20px 크게</option>
-                    <option value="24">24px 아주 크게</option>
-                    <option value="30">30px 제목급</option>
-                  </select>
-                  <button onclick="fontStep(1)" type="button" title="글자 키우기">A＋</button>
-                  <button onclick="fontStep(-1)" type="button" title="글자 줄이기">A－</button>
-                  <span class="ct-sep"></span>
-                  <button onclick="toggleSrc()" type="button" id="srcBtn">HTML</button>
+                  <!-- 글꼴 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">글꼴</span>
+                    <button onclick="fmt('bold')" type="button"><b>굵게</b></button>
+                    <button onclick="fmt('italic')" type="button"><i>기울임</i></button>
+                    <button onclick="fmt('underline')" type="button"><u>밑줄</u></button>
+                    <select onchange="setFontSize(this.value);this.selectedIndex=0" class="ct-sel">
+                      <option value="">크기</option>
+                      <option value="11">11px 아주 작게</option>
+                      <option value="13">13px 작게</option>
+                      <option value="15">15px 보통</option>
+                      <option value="17">17px 조금 크게</option>
+                      <option value="20">20px 크게</option>
+                      <option value="24">24px 아주 크게</option>
+                      <option value="30">30px 제목급</option>
+                    </select>
+                    <button onclick="fontStep(1)" type="button" title="글자 키우기">A＋</button>
+                    <button onclick="fontStep(-1)" type="button" title="글자 줄이기">A－</button>
+                  </div>
+
+                  <!-- 문단 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">문단</span>
+                    <button onclick="iTag('h3')" type="button">제목</button>
+                    <button onclick="iTag('h4')" type="button">소제목</button>
+                    <button onclick="iTag('p')" type="button">본문</button>
+                    <button onclick="fmt('insertUnorderedList')" type="button">• 목록</button>
+                    <button onclick="fmt('insertHorizontalRule')" type="button">구분선</button>
+                    <button onclick="alignText('Left')" type="button" title="왼쪽 정렬">≡◧</button>
+                    <button onclick="alignText('Center')" type="button" title="가운데 정렬">≡▣</button>
+                    <button onclick="alignText('Right')" type="button" title="오른쪽 정렬">≡◨</button>
+                    <button onclick="alignText('Full')" type="button" title="양쪽 맞춤">≡▤</button>
+                  </div>
+
+                  <!-- 사진 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">사진</span>
+                    <button onclick="imgSize('s')" type="button" title="선택한 사진 작게">작게</button>
+                    <button onclick="imgSize('m')" type="button">보통</button>
+                    <button onclick="imgSize('l')" type="button">크게</button>
+                    <button onclick="imgSize('f')" type="button">꽉</button>
+                    <button onclick="imgSizeDlg()" type="button" title="사진 크기를 숫자로 지정">📐 크기 입력</button>
+                    <button onclick="imgAlign('left')" type="button" title="왼쪽 정렬">◧</button>
+                    <button onclick="imgAlign('center')" type="button" title="가운데">▣</button>
+                    <button onclick="imgAlign('right')" type="button" title="오른쪽">◨</button>
+                    <button onclick="imgAlt()" type="button" title="사진 속 글자를 입력하면 음성으로 읽어줍니다"
+                      class="ct-gold">🔊 사진 글자</button>
+                  </div>
+
+                  <!-- 표 만들기 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">표</span>
+                    <button onclick="gridAsk()" type="button" title="표 넣기">▦ 표 넣기</button>
+                    <button onclick="toggleSelMode()" type="button" id="selModeBtn"
+                      title="켜면 마우스로 끌어서 여러 칸을 고르고, 칸 내용을 옮길 수 있습니다">▤ 칸 선택</button>
+                    <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
+                    <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
+                    <button onclick="colAdd()" type="button" title="가로 칸 하나 늘리기">＋칸</button>
+                    <button onclick="cellSplitH()" type="button" title="선택한 칸을 좌우 둘로 나누기">⊟ 나누기</button>
+                    <button onclick="cellMergeSel()" type="button" title="Ctrl+클릭으로 고른 칸들을 하나로 합치기">⊡ 합치기</button>
+                    <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥</button>
+                    <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤</button>
+                    <button onclick="cellClear()" type="button" title="선택한 칸 내용 비우기">칸 비우기</button>
+                    <button onclick="gridDel()" type="button" title="표 전체 삭제" class="ct-red">▨ 표 삭제</button>
+                  </div>
+
+                  <!-- 표 꾸미기 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">표 꾸미기</span>
+                    <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
+                    <button onclick="bgPick('grid')" type="button" title="표 전체 배경색">🎨 표 배경</button>
+                    <button onclick="lineDlg()" type="button" title="표 선 모양·굵기·색상">┼ 선 모양</button>
+                    <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
+                    <button onclick="cellVAlign()" type="button" title="칸 안에서 위/가운데/아래">⇅ 칸 세로</button>
+                    <button onclick="const n=repairGrids(); toast(n?('어긋난 '+n+'곳을 바로잡았습니다.'):'표에 이상이 없습니다.','ok')"
+                      type="button" title="표가 깨졌을 때 모양 바로잡기">🔧 복구</button>
+                  </div>
+
+                  <!-- 배치 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">배치</span>
+                    <button onclick="blockMove(-1)" type="button" title="이 표(또는 문단)를 위로 옮기기">▲ 위로</button>
+                    <button onclick="blockMove(1)" type="button" title="이 표(또는 문단)를 아래로 옮기기">▼ 아래로</button>
+                    <button onclick="blockAround('before')" type="button" title="표 위에 글 쓸 줄 넣기">↑ 글줄</button>
+                    <button onclick="blockAround('after')" type="button" title="표 아래에 글 쓸 줄 넣기">↓ 글줄</button>
+                  </div>
+
+                  <!-- 넣기 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">넣기</span>
+                    <button onclick="btnDlg()" type="button" title="자세히 보기 같은 버튼 넣기"
+                      class="ct-pink">🔘 버튼</button>
+                    <button onclick="toggleSrc()" type="button" id="srcBtn">HTML</button>
+                  </div>
                 </div>
                 <div class="ins-hint">
                   <button type="button" onclick="phOpen()" style="border:1px solid var(--sky);
