@@ -337,6 +337,8 @@ input,select,textarea{font-family:inherit}
 #cedit .blk-moved{animation:blkFlash .7s ease}
 @keyframes blkFlash{0%{background:#fff6d8}100%{background:transparent}}
 #cedit .blk-line{height:3px;background:var(--sky);border-radius:2px;margin:4px 0}
+#cedit .img-drop-mark{display:block;height:4px;background:var(--sky);border-radius:2px;
+  margin:5px 0;box-shadow:0 0 7px rgba(45,136,181,.55)}
 .drag-tip{position:absolute;z-index:70;transform:translate(-50%,-100%);
   background:var(--navy);color:#fff;font-size:.78rem;font-weight:800;
   padding:5px 11px;border-radius:6px;white-space:nowrap;pointer-events:none;
@@ -2022,7 +2024,7 @@ function newArt(){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -2047,7 +2049,7 @@ function editArt(id){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -2782,12 +2784,47 @@ function placeColBars(){
   const wrap = gi('cedit') && gi('cedit').closest('.ce');
   if(wrap){
     const wr = wrap.getBoundingClientRect();
-    const visible = r.bottom > wr.top + 4 && r.top < wr.bottom - 4;
-    cgBar.style.display = visible ? '' : 'none';
-    // 편집창 안에서만 보이도록 잘라냅니다
-    const top = Math.max(r.top, wr.top), bot = Math.min(r.bottom, wr.bottom);
-    cgBar.style.clipPath = `inset(${Math.max(0, top - r.top)}px 0 ${Math.max(0, r.bottom - bot)}px 0)`;
-    if(!visible) return;
+    // 편집창 안에 실제로 보이는 부분만 남깁니다
+    const top = Math.max(r.top, wr.top);
+    const bot = Math.min(r.bottom, wr.bottom);
+    const h = bot - top;
+    if(h < 10){                      // 거의 안 보이면 손잡이를 아예 없앱니다
+      cgBar.style.display = 'none';
+      cgBar.style.pointerEvents = 'none';
+      return;
+    }
+    cgBar.style.display = '';
+    cgBar.style.pointerEvents = '';
+    // 막대를 보이는 구간에만 두어, 상자 밖에서는 잡히지 않게 합니다
+    cgBar.style.left = (r.left + window.scrollX) + 'px';
+    cgBar.style.top = (top + window.scrollY) + 'px';
+    cgBar.style.width = r.width + 'px';
+    cgBar.style.height = h + 'px';
+    const cols0 = parseInt(cgGrid.dataset.cols) || 1;
+    const fr0 = curFrs(cgGrid, cols0);
+    const tot0 = fr0.reduce((a,b)=>a+b, 0);
+    let acc0 = 0;
+    cgBar.querySelectorAll('.cg-h').forEach((h2, n) => {
+      acc0 += fr0[n];
+      h2.style.left = (acc0 / tot0 * r.width) + 'px';
+    });
+    // 눈금은 표 위쪽이 보일 때만
+    const ruler = cgBar.querySelector('.cg-ruler');
+    const totEl = cgBar.querySelector('.cg-total');
+    const showRuler = r.top >= wr.top - 2;
+    if(ruler) ruler.style.display = showRuler ? '' : 'none';
+    if(totEl) totEl.style.display = showRuler ? '' : 'none';
+    if(ruler && showRuler){
+      let left0 = 0;
+      ruler.innerHTML = fr0.map(v => {
+        const w = v / tot0 * r.width;
+        const html = `<span style="left:${left0}px;width:${w}px">${Math.round(w)}px</span>`;
+        left0 += w;
+        return html;
+      }).join('');
+    }
+    if(totEl && showRuler) totEl.textContent = '표 ' + Math.round(r.width) + ' × ' + Math.round(r.height) + 'px';
+    return;
   }
   cgBar.style.left = (r.left + window.scrollX) + 'px';
   cgBar.style.top = (r.top + window.scrollY) + 'px';
@@ -3386,6 +3423,89 @@ function cellVAlign(){
 }
 
 
+
+/* ═══════ 사진을 끌어서 원하는 위치로 옮기기 ═══════
+   표 칸은 물론 본문 문단 사이 어디로든 놓을 수 있습니다. */
+function bindImgDrag(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.idg) return;
+  ed.dataset.idg = '1';
+  let mark = null;
+
+  const makeMark = () => {
+    if(mark) return mark;
+    mark = document.createElement('span');
+    mark.className = 'img-drop-mark';
+    return mark;
+  };
+  const clearMark = () => {
+    ed.querySelectorAll('.wc.drop-t').forEach(c => c.classList.remove('drop-t'));
+    if(mark && mark.parentElement) mark.remove();
+  };
+
+  ed.addEventListener('dragover', e => {
+    if(!selImg) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const cell = e.target.closest && e.target.closest('.wc');
+    ed.querySelectorAll('.wc.drop-t').forEach(c => c.classList.remove('drop-t'));
+
+    if(cell){
+      cell.classList.add('drop-t');
+      if(mark && mark.parentElement) mark.remove();
+      return;
+    }
+    // 본문에서는 어느 문단 사이인지 표시선을 보여줍니다
+    const m = makeMark();
+    const blocks = [...ed.children].filter(x => x !== m && x !== selImg);
+    let target = null, after = false;
+    for(const b of blocks){
+      const r = b.getBoundingClientRect();
+      if(e.clientY < r.top + r.height / 2){ target = b; after = false; break; }
+      target = b; after = true;
+    }
+    if(target) after ? target.after(m) : ed.insertBefore(m, target);
+    else ed.appendChild(m);
+  });
+
+  ed.addEventListener('dragleave', e => {
+    if(e.target === ed) clearMark();
+  });
+
+  ed.addEventListener('drop', e => {
+    if(!selImg) return;
+    e.preventDefault();
+    const cell = e.target.closest && e.target.closest('.wc');
+
+    if(cell){
+      if(!cell.textContent.trim() && !cell.querySelector('img')) cell.innerHTML = '';
+      cell.appendChild(selImg);
+      if(!cell.querySelector('p')) cell.insertAdjacentHTML('beforeend','<p><br></p>');
+      selImg.dataset.sz = 'f';
+      selImg.style.width = '100%';
+      selImg.style.maxWidth = '100%';
+    }else if(mark && mark.parentElement){
+      // 본문 문단 사이로 옮깁니다
+      const p = document.createElement('p');
+      p.appendChild(selImg);
+      mark.replaceWith(p);
+      if(selImg.dataset.sz === 'f'){
+        selImg.dataset.sz = 'm';
+        selImg.style.width = '60%';
+      }
+    }else{
+      clearMark(); return;
+    }
+
+    clearMark();
+    bindGrid(); syncSrc();
+    if(rzTarget === selImg) placeHandles(); else showHandles(selImg);
+    toast('사진을 옮겼습니다.','ok');
+  });
+
+  ed.addEventListener('dragend', () => clearMark());
+}
+
 /* ═══════ 표·문단을 글자처럼 옮기기 ═══════
    한글에서 표를 잘라내 다른 위치에 붙이는 것과 같은 동작입니다. */
 
@@ -3807,18 +3927,7 @@ function bindGrid(){
       showColBars(c.closest('.wg'));
       setTimeout(()=>{ saveCaret(); showInsertHint(); }, 0);
     });
-    c.addEventListener('dragover', e => { e.preventDefault(); c.classList.add('drop'); });
-    c.addEventListener('dragleave', () => c.classList.remove('drop'));
-    c.addEventListener('drop', e => {
-      e.preventDefault(); c.classList.remove('drop');
-      if(!selImg) return;
-      if(!c.textContent.trim() && !c.querySelector('img')) c.innerHTML = '';
-      c.appendChild(selImg);
-      if(!c.querySelector('p')) c.insertAdjacentHTML('beforeend','<p><br></p>');
-      selImg.dataset.sz = 'f';
-      selImg.style.width = '100%';
-      bindGrid(); syncSrc();
-    });
+    // 놓기 처리는 편집창 전체에서 한 번에 다룹니다 (bindImgDrag)
   });
 
   ed.querySelectorAll('img').forEach(im => {
