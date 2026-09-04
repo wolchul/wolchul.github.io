@@ -713,8 +713,9 @@ input,select,textarea{font-family:inherit}
                     <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
                     <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
                     <button onclick="colAdd()" type="button" title="가로 칸 하나 늘리기">＋칸</button>
-                    <button onclick="cellSplitH()" type="button" title="선택한 칸을 좌우 둘로 나누기">⊟ 나누기</button>
+                    <button onclick="splitDlg()" type="button" title="칸·줄·표를 나누는 방법 고르기">⊟ 나누기</button>
                     <button onclick="cellMergeSel()" type="button" title="Ctrl+클릭으로 고른 칸들을 하나로 합치기">⊡ 합치기</button>
+                    <button onclick="cellDel()" type="button" title="선택한 칸 자체를 없애기">⊗ 칸 삭제</button>
                     <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥</button>
                     <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤</button>
                     <button onclick="cellClear()" type="button" title="선택한 칸 내용 비우기">칸 비우기</button>
@@ -1244,6 +1245,31 @@ input,select,textarea{font-family:inherit}
 
     <div class="ca">
       <button class="btn bo" onclick="gi('phModal').classList.remove('open')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 나누는 방법 -->
+<div class="conf" id="splitDlgBox">
+  <div class="conf-box" style="max-width:440px">
+    <h3>⊟ 나누기</h3>
+    <p style="margin-bottom:14px">어떻게 나눌지 골라 주세요.</p>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <button class="btn bo" style="text-align:left;padding:13px 15px" onclick="doSplit('cell')">
+        <strong>▥ 이 칸만 좌우로 나누기</strong><br>
+        <small style="color:var(--text-s);font-weight:400">고른 칸 하나가 둘로 쪼개집니다. 다른 칸은 그대로입니다.</small>
+      </button>
+      <button class="btn bo" style="text-align:left;padding:13px 15px" onclick="doSplit('row')">
+        <strong>▤ 이 줄을 위아래로 나누기</strong><br>
+        <small style="color:var(--text-s);font-weight:400">고른 칸이 있는 줄이 두 줄이 됩니다.</small>
+      </button>
+      <button class="btn bo" style="text-align:left;padding:13px 15px" onclick="doSplit('table')">
+        <strong>▦ 표를 둘로 나누기</strong><br>
+        <small style="color:var(--text-s);font-weight:400">고른 줄을 경계로 표가 위·아래 두 개로 갈라집니다.</small>
+      </button>
+    </div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('splitDlgBox').classList.remove('open')">취소</button>
     </div>
   </div>
 </div>
@@ -2027,7 +2053,7 @@ function newArt(){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -2052,7 +2078,7 @@ function editArt(id){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -3438,6 +3464,179 @@ function cellVAlign(){
 }
 
 
+
+
+
+/* ═══════ 칸 삭제 · 나누기 방식 선택 ═══════ */
+
+function splitDlg(){
+  if(!selCell){ toast('나눌 칸을 먼저 클릭해 주세요.','err'); return; }
+  gi('splitDlgBox').classList.add('open');
+}
+
+function doSplit(mode){
+  gi('splitDlgBox').classList.remove('open');
+  if(mode === 'cell')  return cellSplitH();
+  if(mode === 'row')   return rowSplit();
+  if(mode === 'table') return tableSplit();
+}
+
+/* 줄을 위아래 둘로 나눕니다 (그 줄 아래에 같은 칸 수의 줄을 하나 더) */
+function rowSplit(){
+  if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
+  const info = cellRowInfo(selCell); if(!info || info.row == null) return;
+  const row = info.rows[info.row];
+  const last = row[row.length - 1];
+  const frag = document.createDocumentFragment();
+  row.forEach(c => {
+    const nc = document.createElement('div');
+    nc.className = 'wc'; nc.innerHTML = '<p><br></p>';
+    const sp = parseInt(c.dataset.span) || 1;
+    if(sp > 1){ nc.dataset.span = sp; nc.style.gridColumn = 'span ' + sp; }
+    frag.appendChild(nc);
+  });
+  last.after(frag);
+  bindGrid(); syncSrc();
+  toast('줄을 위아래로 나눴습니다.','ok');
+}
+
+/* 표 자체를 둘로 가릅니다 */
+function tableSplit(){
+  if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
+  const info = cellRowInfo(selCell); if(!info || info.row == null) return;
+  if(info.rows.length < 2){ toast('줄이 하나뿐이라 표를 나눌 수 없습니다.','err'); return; }
+  if(info.row === 0){ toast('첫 줄에서는 나눌 수 없습니다. 아래쪽 줄을 골라 주세요.','err'); return; }
+
+  const g = info.grid;
+  const g2 = g.cloneNode(false);              // 같은 설정의 빈 표
+  delete g2.dataset.fr;
+  g2.dataset.cols = g.dataset.cols;
+  g2.setAttribute('style', g.getAttribute('style') || '');
+
+  // 고른 줄부터 아래를 새 표로 옮깁니다
+  for(let r = info.row; r < info.rows.length; r++){
+    info.rows[r].forEach(c => g2.appendChild(c));
+  }
+  g.after(g2);
+  // 사이에 글 쓸 줄을 하나 넣어 둡니다
+  const p = document.createElement('p'); p.innerHTML = '<br>';
+  g.after(p);
+
+  clearMulti(); selCell = null;
+  bindGrid(); repairGrids(); syncSrc();
+  toast('표를 두 개로 나눴습니다.','ok');
+}
+
+/* 칸 자체를 없앱니다 (남은 칸이 그 자리를 채웁니다) */
+function cellDel(){
+  const list = cellsSelected();
+  if(!list.length){ toast('없앨 칸을 먼저 클릭해 주세요.','err'); return; }
+  const g = list[0].closest('.wg'); if(!g) return;
+  const cols = parseInt(g.dataset.cols) || 1;
+  const all = [...g.querySelectorAll(':scope > .wc')];
+  if(all.length - list.length < 1){
+    toast('칸을 모두 없앨 수는 없습니다. 표 삭제를 사용해 주세요.','err'); return;
+  }
+  const msg = list.length > 1
+    ? (list.length + '개 칸을 없앨까요? 안의 내용도 함께 지워집니다.')
+    : '이 칸을 없앨까요? 안의 내용도 함께 지워집니다.';
+  if(!confirm(msg)) return;
+
+  // 없앤 폭만큼 같은 줄의 남은 칸을 넓혀 모양을 유지합니다
+  const info = cellRowInfo(list[0]);
+  const rowCells = (info && info.row != null) ? info.rows[info.row] : [];
+  let freed = 0;
+  list.forEach(c => { freed += parseInt(c.dataset.span) || 1; c.remove(); });
+  const rest = rowCells.filter(c => document.body.contains(c));
+  if(rest.length && freed > 0){
+    const grow = Math.floor(freed / rest.length);
+    const extra = freed % rest.length;
+    rest.forEach((c, i) => {
+      const sp = (parseInt(c.dataset.span) || 1) + grow + (i < extra ? 1 : 0);
+      if(sp > 1){ c.dataset.span = Math.min(sp, cols); c.style.gridColumn = 'span ' + Math.min(sp, cols); }
+    });
+  }
+  clearMulti(); selCell = null;
+  bindGrid(); repairGrids(); syncSrc();
+  toast('칸을 없앴습니다.','ok');
+}
+
+/* ═══════ Delete·Backspace 보호 ═══════
+   실수로 표 전체가 지워지지 않게 막고, 사진만 깔끔히 지웁니다. */
+function bindDeleteGuard(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.dg) return;
+  ed.dataset.dg = '1';
+
+  ed.addEventListener('keydown', e => {
+    if(e.key !== 'Delete' && e.key !== 'Backspace') return;
+
+    // ① 사진을 고른 상태면 사진만 지웁니다
+    if(selImg && ed.contains(selImg)){
+      e.preventDefault();
+      const cell = selImg.closest('.wc');
+      const fig  = selImg.closest('figure.imgtxt');
+      (fig || selImg).remove();
+      hideHandles();
+      selImg = null;
+      if(cell && !cell.innerHTML.trim()) cell.innerHTML = '<p><br></p>';
+      const st = gi('imgSel'); if(st) st.textContent = '';
+      syncSrc();
+      toast('사진을 지웠습니다.','ok');
+      return;
+    }
+
+    // ② 표가 통째로 선택돼 지워지려는 경우를 막습니다
+    const sel = window.getSelection();
+    if(!sel || !sel.rangeCount) return;
+    const r = sel.getRangeAt(0);
+
+    // 선택 범위 안에 표가 들어 있으면 차단
+    if(!r.collapsed){
+      const frag = r.cloneContents();
+      if(frag.querySelector && frag.querySelector('.wg')){
+        e.preventDefault();
+        toast('표는 이렇게 지울 수 없습니다. ▨ 표 삭제 버튼을 눌러 주세요.','err');
+        return;
+      }
+    }
+
+    // 빈 칸에서 지우기를 눌러 표가 무너지는 것도 막습니다
+    let n = r.startContainer;
+    if(n && n.nodeType === 3) n = n.parentElement;
+    const cell = n && n.closest ? n.closest('.wc') : null;
+    if(cell && r.collapsed){
+      const empty = !cell.textContent.trim() && !cell.querySelector('img');
+      const atStart = r.startOffset === 0;
+      if(empty || (e.key === 'Backspace' && atStart)){
+        e.preventDefault();
+        if(!empty) return;
+        toast('빈 칸입니다. 칸을 없애려면 －줄 이나 ⊡ 합치기를 쓰세요.','err');
+      }
+      return;
+    }
+
+    // 표 바로 앞뒤에서 지우기를 눌러 표가 사라지는 것도 막습니다
+    if(r.collapsed && n && n.parentElement === ed){
+      const prev = n.previousElementSibling, next = n.nextElementSibling;
+      const emptyBlock = !n.textContent.trim();
+      if(e.key === 'Backspace' && r.startOffset === 0 && prev && prev.classList.contains('wg')){
+        e.preventDefault();
+        if(emptyBlock) n.remove();
+        toast('표 앞의 빈 줄만 정리했습니다. 표는 그대로입니다.','ok');
+        syncSrc(); return;
+      }
+      if(e.key === 'Delete' && next && next.classList.contains('wg')){
+        const len = (n.textContent || '').length;
+        if(r.startOffset >= len){
+          e.preventDefault();
+          if(emptyBlock) n.remove();
+          toast('표 뒤의 빈 줄만 정리했습니다. 표는 그대로입니다.','ok');
+          syncSrc(); return;
+        }
+      }
+    }
+  });
+}
 
 /* ═══════ 사진을 끌어서 원하는 위치로 옮기기 ═══════
    표 칸은 물론 본문 문단 사이 어디로든 놓을 수 있습니다. */
