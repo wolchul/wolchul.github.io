@@ -316,6 +316,8 @@ input,select,textarea{font-family:inherit}
   font-size:.7rem;font-weight:800;padding:3px 9px;border-radius:5px;white-space:nowrap;
   box-shadow:0 2px 6px rgba(0,0,0,.25);transition:all .12s}
 .rz-size.big{font-size:.86rem;padding:5px 13px;top:-34px;background:var(--navy)}
+.rz-size.inside{top:4px;left:4px}
+.rz-size.inside.big{top:4px}
 
 /* 표 눈금 */
 .cg-ruler span{position:absolute;top:-15px;height:14px;line-height:14px;text-align:center;
@@ -385,6 +387,7 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
 #cedit img{cursor:grab;max-width:100%;height:auto;border-radius:6px}
 #cedit img.img-loading{opacity:.45;filter:grayscale(.3)}
+#cedit img.img-dragging{opacity:.4;outline:2px dashed var(--sky)}
 #cedit img:active{cursor:grabbing}
 #cedit img.sel{outline:3px solid var(--sky);outline-offset:2px}
 #cedit img[data-sz="s"]{width:38%} #cedit img[data-sz="m"]{width:60%}
@@ -2990,9 +2993,21 @@ function placeHandles(dragging){
   const wrap = gi('cedit') && gi('cedit').closest('.ce');
   if(wrap){
     const wr = wrap.getBoundingClientRect();
-    const visible = r.bottom > wr.top + 4 && r.top < wr.bottom - 4;
-    rzHandles.style.display = visible ? '' : 'none';
-    if(!visible) return;
+    const top = Math.max(r.top, wr.top);
+    const bot = Math.min(r.bottom, wr.bottom);
+    if(bot - top < 12){                   // 거의 안 보이면 손잡이를 감춥니다
+      rzHandles.style.display = 'none';
+      rzHandles.style.pointerEvents = 'none';
+      return;
+    }
+    rzHandles.style.display = '';
+    rzHandles.style.pointerEvents = 'none';   // 상자 자체는 클릭을 가로채지 않습니다
+    // 편집창을 벗어난 부분은 잘라냅니다
+    rzHandles.style.clipPath =
+      `inset(${Math.max(0, wr.top - r.top)}px 0 ${Math.max(0, r.bottom - wr.bottom)}px 0)`;
+    // 크기 표시가 편집창 위로 튀어나가면 사진 안쪽으로 내립니다
+    const s2 = rzHandles.querySelector('.rz-size');
+    if(s2) s2.classList.toggle('inside', r.top - wr.top < 30);
   }
   const b = rzHandles;
   b.style.left = (r.left + window.scrollX) + 'px';
@@ -3937,24 +3952,32 @@ function bindGrid(){
     if(!im.dataset.al) im.dataset.al = 'center';
     if(BOUND.has(im)) return; BOUND.add(im);
     const pick = e => {
-      e.stopPropagation(); e.preventDefault();
+      // preventDefault 를 부르면 끌기가 시작되지 않으므로 쓰지 않습니다
+      if(e) e.stopPropagation();
       ed.querySelectorAll('img').forEach(x=>x.classList.remove('sel'));
       im.classList.add('sel'); selImg = im;
       const cell = im.closest('.wc');
       ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
       if(cell){ cell.classList.add('sel'); selCell = cell; }
       const st = gi('imgSel');
-      if(st) st.textContent = '🖼 사진 선택됨 — 모서리를 끌거나 크기 버튼을 쓰세요';
+      if(st) st.textContent = '🖼 사진 선택됨 — 끌어서 옮기거나 모서리로 크기 조절';
       showHandles(im);
     };
-    im.addEventListener('mousedown', pick);   // 클릭이 편집기에 먹히지 않도록
+    im.addEventListener('mousedown', pick);
     im.addEventListener('click', pick);
     im.addEventListener('dragstart', ev => {
       selImg = im;
-      im.style.opacity = '.4';
-      try{ ev.dataTransfer.setData('text/plain','img'); ev.dataTransfer.effectAllowed='move'; }catch{}
+      im.classList.add('img-dragging');
+      try{
+        ev.dataTransfer.setData('text/plain','wc-img');
+        ev.dataTransfer.effectAllowed = 'move';
+      }catch{}
+      hideHandles();          // 끄는 동안 손잡이는 감춥니다
     });
-    im.addEventListener('dragend', () => { im.style.opacity = ''; });
+    im.addEventListener('dragend', () => {
+      im.classList.remove('img-dragging');
+      setTimeout(() => { if(selImg === im) showHandles(im); }, 40);
+    });
   });
 }
 
