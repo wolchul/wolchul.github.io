@@ -1508,6 +1508,7 @@ let ttsArtId = null;
 /* ═══════ 항목 단위 읽어주기 ═══════
    표 칸이나 문단을 하나씩 끊어 읽고, 지금 읽는 곳을 표시합니다. */
 let ttsSecs = [], ttsSecIdx = -1;
+let ttsOnce = false;   // 칸을 눌러 재생한 경우 — 그 칸만 읽고 멈춥니다
 
 /* 기사를 읽을 단위로 쪼갭니다 */
 function buildSections(id){
@@ -1555,7 +1556,7 @@ function sectionText(el){
   return t;
 }
 
-/* 표 칸을 눌러 그 부분부터 듣기 (모바일 포함) */
+/* 표 칸을 눌러 그 칸만 듣기 (모바일 포함) — 다음 칸으로 넘어가지 않습니다 */
 function playCell(cell){
   if(!cell) return;
   const art = cell.closest('.wz-art');
@@ -1563,25 +1564,20 @@ function playCell(cell){
   const id = art.id.replace(/^art-/, '');
 
   // 같은 칸을 다시 누르면 멈춥니다
-  if(ttsPlay && ttsArtId === id && ttsSecs[ttsSecIdx] && ttsSecs[ttsSecIdx].el === cell){
+  if(ttsPlay && ttsSecs[ttsSecIdx] && ttsSecs[ttsSecIdx].el === cell){
     stopTTS();
     setTtsState('멈췄습니다.');
     return;
   }
 
+  const t = sectionText(cell);
+  if(!t) return;
+
   stopTTS(true);
   ttsArtId = id;
-  ttsSecs = buildSections(id);
-  const i = ttsSecs.findIndex(x => x.el === cell);
-  if(i < 0){
-    // 표 밖 글이면 그 글만 읽습니다
-    const t = sectionText(cell);
-    if(!t){ return; }
-    ttsSecs = [{ el: cell, text: t, label: null }];
-    playSection(0);
-    return;
-  }
-  playSection(i);
+  ttsSecs = [{ el: cell, text: t, label: null }];   // 이 칸 하나만
+  ttsOnce = true;                                    // 끝나면 멈춥니다
+  playSection(0);
 }
 
 /* 화면 어디를 눌러도 한 곳에서 처리 (모바일 터치 포함) */
@@ -1633,10 +1629,11 @@ document.addEventListener('keydown', e => {
 
 /* 읽어주기 시작 / 일시정지 */
 function ttsToggle(id){
-  if(ttsPlay && ttsArtId === id){ ttsPlayPause(); return; }
-  const sameArticle = (ttsArtId === id && ttsSecs.length);
+  if(ttsPlay && ttsArtId === id && !ttsOnce){ ttsPlayPause(); return; }
+  const sameArticle = (ttsArtId === id && ttsSecs.length && !ttsOnce);
   stopTTS(true);
   ttsArtId = id;
+  ttsOnce = false;                 // 처음부터 버튼은 이어서 읽습니다
   ttsSecs = buildSections(id);
   if(!ttsSecs.length){ setTtsState('읽을 내용이 없습니다.'); return; }
   playSection(sameArticle && ttsSecIdx >= 0 ? ttsSecIdx : 0);
@@ -1662,16 +1659,35 @@ function markSection(i){
     }
   }
   const n = document.getElementById('ttss-' + ttsArtId);
-  if(n) n.textContent = `읽는 중 ${i+1} / ${ttsSecs.length}` + (ttsSecs[i].label ? ' · ' + ttsSecs[i].label : '');
+  if(n){
+    n.textContent = ttsOnce
+      ? '선택한 부분을 읽는 중'
+      : (`읽는 중 ${i+1} / ${ttsSecs.length}` + (ttsSecs[i].label ? ' · ' + ttsSecs[i].label : ''));
+  }
 }
 
 /* 이전 / 다음 항목 */
+/* 이전·다음은 기사 전체를 항목으로 나눠 이동합니다 */
+function ensureSections(){
+  if(ttsOnce || !ttsSecs.length || ttsSecs.length === 1){
+    const cur = ttsSecs[ttsSecIdx] ? ttsSecs[ttsSecIdx].el : null;
+    const id = ttsArtId;
+    if(!id) return false;
+    const all = buildSections(id);
+    if(!all.length) return false;
+    const i = cur ? all.findIndex(x => x.el === cur) : 0;
+    ttsSecs = all;
+    ttsSecIdx = i < 0 ? 0 : i;
+    ttsOnce = false;
+  }
+  return true;
+}
 function ttsPrev(){
-  if(!ttsSecs.length){ toast && 0; return; }
+  if(!ensureSections()) return;
   playSection(Math.max(0, ttsSecIdx - 1));
 }
 function ttsNext(){
-  if(!ttsSecs.length) return;
+  if(!ensureSections()) return;
   if(ttsSecIdx + 1 >= ttsSecs.length){ stopTTS(); setTtsState('다 읽었습니다.'); return; }
   playSection(ttsSecIdx + 1);
 }
@@ -1766,11 +1782,11 @@ function queueFrom(start, session){
       ttsIdx = i; ttsMovedAt = Date.now();
       if(i === ttsChunks.length - 1){
         // 한 항목이 끝났습니다
-        if(ttsAuto && ttsSecs.length && ttsSecIdx + 1 < ttsSecs.length){
+        if(!ttsOnce && ttsAuto && ttsSecs.length && ttsSecIdx + 1 < ttsSecs.length){
           setTimeout(() => playSection(ttsSecIdx + 1), 350);
         }else{
           stopTTS();
-          if(ttsSecs.length) setTtsState('다 읽었습니다.');
+          setTtsState(ttsOnce ? '' : (ttsSecs.length ? '다 읽었습니다.' : ''));
         }
       }
     };
@@ -1843,7 +1859,7 @@ function startWatch(){
 
     if(idle && gap > 1500){
       if(ttsIdx >= ttsChunks.length - 1){
-        if(ttsAuto && ttsSecs.length && ttsSecIdx + 1 < ttsSecs.length){
+        if(!ttsOnce && ttsAuto && ttsSecs.length && ttsSecIdx + 1 < ttsSecs.length){
           playSection(ttsSecIdx + 1);
         }else stopTTS();
         return;
@@ -1859,7 +1875,7 @@ function startWatch(){
 function stopTTS(keepSection) {
   if(!keepSection){
     document.querySelectorAll('.tts-now').forEach(e => e.classList.remove('tts-now'));
-    ttsSecs = []; ttsSecIdx = -1;
+    ttsSecs = []; ttsSecIdx = -1; ttsOnce = false;
   }
   ttsSession++;
   if(window.speechSynthesis) speechSynthesis.cancel();
