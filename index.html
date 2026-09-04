@@ -519,15 +519,17 @@ img{max-width:100%}
   border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
 .wz-body .wg .wc{min-width:0;padding:16px;border:1px solid var(--line);
   display:flex;flex-direction:column;justify-content:flex-start}
+.wz-body .wg .wc > *{width:100%;align-self:stretch}
 /* 투명 선 — 작성 화면에서만 점선으로 보이고 여기서는 완전히 감춥니다 */
 .wz-body .wg.line-none,
 .wz-body .wg.line-none > .wc{border:none !important}
 .wz-body .wg.line-none{gap:14px}
 .wz-body .wg .wc img{max-width:100%;height:auto;margin:6px auto}
 /* 칸 정렬 — 작성 화면에서 정한 대로 */
-.wz-body .wg .wc[data-al="center"]{text-align:center}
-.wz-body .wg .wc[data-al="right"]{text-align:right}
-.wz-body .wg .wc[data-al="justify"]{text-align:justify}
+.wz-body .wg .wc[data-al="left"],   .wz-body .wg .wc[data-al="left"] > *{text-align:left}
+.wz-body .wg .wc[data-al="center"], .wz-body .wg .wc[data-al="center"] > *{text-align:center}
+.wz-body .wg .wc[data-al="right"],  .wz-body .wg .wc[data-al="right"] > *{text-align:right}
+.wz-body .wg .wc[data-al="justify"],.wz-body .wg .wc[data-al="justify"] > *{text-align:justify}
 .wz-body .wg .wc[data-va="center"]{justify-content:center}
 .wz-body .wg .wc[data-va="flex-end"]{justify-content:flex-end}
 /* 가운데·오른쪽 정렬일 때 사진도 함께 따라갑니다 */

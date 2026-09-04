@@ -373,12 +373,20 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc{border:1px solid #cfd8e0;padding:10px;background:#fff;
   transition:border-color .15s;overflow-wrap:anywhere;min-width:0;
   display:flex;flex-direction:column;justify-content:flex-start}
-#cedit .wg .wc[data-al="center"]{text-align:center}
-#cedit .wg .wc[data-al="right"]{text-align:right}
-#cedit .wg .wc[data-al="justify"]{text-align:justify}
+/* 칸 안의 문단이 칸 폭을 채우도록 (안 그러면 정렬이 보이지 않습니다) */
+#cedit .wg .wc > *{width:100%;align-self:stretch}
+/* 가로 정렬 */
+#cedit .wg .wc[data-al="left"],   #cedit .wg .wc[data-al="left"] > *{text-align:left}
+#cedit .wg .wc[data-al="center"], #cedit .wg .wc[data-al="center"] > *{text-align:center}
+#cedit .wg .wc[data-al="right"],  #cedit .wg .wc[data-al="right"] > *{text-align:right}
+#cedit .wg .wc[data-al="justify"],#cedit .wg .wc[data-al="justify"] > *{text-align:justify}
 #cedit .wg .wc[data-al="center"] img{margin-left:auto;margin-right:auto}
 #cedit .wg .wc[data-al="right"] img{margin-left:auto;margin-right:0}
 #cedit .wg .wc[data-al="left"] img{margin-left:0;margin-right:auto}
+/* 세로 정렬 */
+#cedit .wg .wc[data-va="flex-start"]{justify-content:flex-start}
+#cedit .wg .wc[data-va="center"]{justify-content:center}
+#cedit .wg .wc[data-va="flex-end"]{justify-content:flex-end}
 #cedit .wg .wc > *:first-child{margin-top:0}
 #cedit .wg .wc > *:last-child{margin-bottom:0}
 #cedit .wg .wc p:empty::before{content:'내용을 입력하세요';color:#c2cad2;font-size:.78rem}
@@ -729,7 +737,9 @@ input,select,textarea{font-family:inherit}
                     <button onclick="bgPick('grid')" type="button" title="표 전체 배경색">🎨 표 배경</button>
                     <button onclick="lineDlg()" type="button" title="표 선 모양·굵기·색상">┼ 선 모양</button>
                     <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
-                    <button onclick="cellVAlign()" type="button" title="칸 안에서 위/가운데/아래">⇅ 칸 세로</button>
+                    <button onclick="setVAlign('top')" type="button" title="칸 안에서 위쪽에 붙이기">⇧ 위</button>
+                    <button onclick="setVAlign('middle')" type="button" title="칸 안에서 가운데">⇕ 중간</button>
+                    <button onclick="setVAlign('bottom')" type="button" title="칸 안에서 아래쪽에 붙이기">⇩ 아래</button>
                     <button onclick="const n=repairGrids(); toast(n?('어긋난 '+n+'곳을 바로잡았습니다.'):'표에 이상이 없습니다.','ok')"
                       type="button" title="표가 깨졌을 때 모양 바로잡기">🔧 복구</button>
                   </div>
@@ -3329,6 +3339,11 @@ function normalizeGrids(){
         cell.dataset.al ? `text-align:${cell.dataset.al}` : ''
       ].filter(Boolean).join(';');
       cell.setAttribute('style', cs);
+      // 칸 안 문단도 같은 정렬로 맞춰 둡니다 (칸이 flex 라 자식에 지정해야 확실합니다)
+      cell.querySelectorAll(':scope > *').forEach(el => {
+        el.style.width = '100%';
+        if(cell.dataset.al) el.style.textAlign = cell.dataset.al;
+      });
     });
   });
 }
@@ -3432,36 +3447,78 @@ function alignText(dir){
   const css = map[dir] || 'left';
   const list = cellsSelected();
 
+  // ① 표 칸을 골랐으면 그 칸(과 안의 문단)에 적용
   if(list.length){
-    // 선택한 칸 전체에 적용
-    list.forEach(c => { c.style.textAlign = css; c.dataset.al = css; });
+    list.forEach(c => {
+      c.dataset.al = css;
+      c.style.textAlign = css;
+      c.querySelectorAll(':scope > *').forEach(el => { el.style.textAlign = css; });
+    });
     syncSrc();
-    toast(list.length > 1 ? (list.length + '개 칸을 ' + alignName(css) + '했습니다.')
-                          : ('칸을 ' + alignName(css) + '했습니다.'), 'ok');
+    toast((list.length > 1 ? list.length + '개 칸을 ' : '칸을 ') + alignName(css) + '했습니다.','ok');
     return;
   }
-  // 일반 본문 — 커서가 있는 문단에 적용
+
+  // ② 그 밖에는 커서(또는 선택 영역)가 걸친 문단들에 직접 적용합니다
   restoreCaret();
-  document.execCommand('justify' + dir, false, null);
+  const blocks = selectedBlocks(ed);
+  if(!blocks.length){
+    toast('정렬할 글에 커서를 놓거나 드래그해서 선택해 주세요.','err');
+    return;
+  }
+  blocks.forEach(el => { el.style.textAlign = css; });
   saveCaret(); syncSrc();
   toast(alignName(css) + '했습니다.','ok');
 }
+
+/* 지금 커서·선택이 걸쳐 있는 문단 요소들을 찾습니다 */
+function selectedBlocks(ed){
+  const sel = window.getSelection();
+  if(!sel || !sel.rangeCount) return [];
+  const r = sel.getRangeAt(0);
+  const isBlock = el => el && el.nodeType === 1 &&
+    /^(P|DIV|H1|H2|H3|H4|H5|H6|LI|BLOCKQUOTE|FIGURE)$/.test(el.tagName) &&
+    !el.classList.contains('wg');
+  const up = n => {
+    if(n && n.nodeType === 3) n = n.parentElement;
+    while(n && n !== ed && !isBlock(n)) n = n.parentElement;
+    return (n && n !== ed) ? n : null;
+  };
+  if(r.collapsed){
+    const b = up(r.startContainer);
+    return b ? [b] : [];
+  }
+  const out = [];
+  const s2 = up(r.startContainer), e2 = up(r.endContainer);
+  if(s2) out.push(s2);
+  // 사이에 걸친 문단도 모읍니다
+  const walker = document.createTreeWalker(ed, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: n => (isBlock(n) && r.intersectsNode(n))
+      ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
+  });
+  let n;
+  while((n = walker.nextNode())) if(!out.includes(n)) out.push(n);
+  if(e2 && !out.includes(e2)) out.push(e2);
+  return out;
+}
+
 function alignName(css){
   return { left:'왼쪽 정렬', center:'가운데 정렬', right:'오른쪽 정렬', justify:'양쪽 맞춤' }[css] || '정렬';
 }
 
-/* 칸 안에서 위 / 가운데 / 아래 (세로 위치) */
-function cellVAlign(){
+/* 칸 안에서 위 / 가운데 / 아래 (세로 위치) — 버튼으로 바로 지정 */
+function setVAlign(pos){
   const list = cellsSelected();
   if(!list.length){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
-  const steps = ['flex-start','center','flex-end'];
-  const names = ['위쪽', '가운데', '아래쪽'];
-  const cur = list[0].dataset.va || 'flex-start';
-  const i = (steps.indexOf(cur) + 1) % steps.length;
-  list.forEach(c => { c.style.justifyContent = steps[i]; c.dataset.va = steps[i]; });
+  const map = { top:'flex-start', middle:'center', bottom:'flex-end' };
+  const name = { top:'위쪽', middle:'가운데', bottom:'아래쪽' };
+  const v = map[pos] || 'flex-start';
+  list.forEach(c => { c.dataset.va = v; c.style.justifyContent = v; });
   syncSrc();
-  toast('칸 세로 위치: ' + names[i], 'ok');
+  toast((list.length > 1 ? list.length + '개 칸을 ' : '칸을 ') + name[pos] + ' 정렬했습니다.','ok');
 }
+
+/* 칸 안에서 위 / 가운데 / 아래 (세로 위치) */
 
 
 
