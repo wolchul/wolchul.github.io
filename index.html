@@ -566,6 +566,16 @@ a.wz-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
   .wz-body img[data-px]{width:100% !important}
 }
 
+/* 지금 읽고 있는 항목 표시 */
+.tts-now{position:relative;background:#fffbe8 !important;
+  outline:2px solid var(--acc);outline-offset:-2px;border-radius:6px;
+  transition:background .2s}
+.tts-now::after{content:'🔊 읽는 중';position:absolute;top:-11px;left:10px;
+  background:var(--acc);color:#fff;font-size:.66rem;font-weight:800;
+  padding:2px 8px;border-radius:10px;white-space:nowrap}
+.wz-tts-b.main{background:var(--c1);border-color:var(--c1);color:#fff}
+.wz-tts-b.main:hover{background:var(--c2);color:#fff}
+
 /* 사진 속 글자 — 접었다 펴기 */
 .wz-body figure.imgtxt{margin:16px 0}
 .wz-body figure.imgtxt img{display:block;margin:0 auto;max-width:100%;height:auto;border-radius:var(--r)}
@@ -1297,8 +1307,12 @@ function render() {
     <article class="wz-art span-${span} lay-${lay}" id="art-${a.id}">
       ${inner}
       <div class="wz-tts">
-        <button class="wz-tts-b" id="ttsb-${a.id}" onclick="ttsToggle('${a.id}')">🔊 읽어주기</button>
+        <button class="wz-tts-b main" id="ttsb-${a.id}" onclick="ttsToggle('${a.id}')">🔊 읽어주기</button>
+        <button class="wz-tts-b" onclick="ttsPrev()" title="이전 항목">⏮ 이전</button>
+        <button class="wz-tts-b" onclick="ttsNext()" title="다음 항목">⏭ 다음</button>
         <button class="wz-tts-b" onclick="stopTTS()">■ 정지</button>
+        <button class="wz-tts-b on" onclick="toggleTtsAuto(this)"
+          title="한 항목이 끝나면 다음으로 이어서 읽습니다">🔁 이어 듣기 켬</button>
         <select class="wz-tts-b" onchange="setTtsRate(this.value)" aria-label="읽는 속도">
           <option value="0.8">느리게</option><option value="1" selected>보통</option>
           <option value="1.2">빠르게</option><option value="1.5">아주 빠르게</option>
@@ -1465,26 +1479,110 @@ function setTtsRate(v){
 
 /* 기사별 읽어주기 — 같은 기사를 다시 누르면 일시정지/재개 */
 let ttsArtId = null;
-function ttsToggle(id){
-  if(ttsPlay && ttsArtId === id){ ttsPlayPause(); return; }   // 같은 글 → 일시정지/재개
-  stopTTS();
-  ttsArtId = id;
+/* ═══════ 항목 단위 읽어주기 ═══════
+   표 칸이나 문단을 하나씩 끊어 읽고, 지금 읽는 곳을 표시합니다. */
+let ttsSecs = [], ttsSecIdx = -1;
+
+/* 기사를 읽을 단위로 쪼갭니다 */
+function buildSections(id){
   const a = ARTS.find(x => String(x.id) === String(id));
-  if(!a){ return; }
-  const body = document.getElementById('body-'+id);
-  let bodyText = '';
-  if(body){
-    // 접혀 있는 '사진 속 글자'도 함께 읽습니다
-    const clone = body.cloneNode(true);
-    clone.querySelectorAll('.imgtxt-body').forEach(el => el.classList.add('open'));
-    clone.querySelectorAll('.imgtxt-tog').forEach(el => el.remove());
-    document.body.appendChild(clone);
-    clone.style.cssText = 'position:absolute;left:-9999px;top:0';
-    bodyText = clone.innerText;
-    clone.remove();
+  const body = document.getElementById('body-' + id);
+  const out = [];
+  if(a){
+    const head = [(a.title||''), (a.summary||'')].filter(Boolean).join('. ');
+    if(head) out.push({ el: null, text: head, label: '제목·요약' });
   }
-  const text = (a.title||'') + '. ' + (a.summary||'') + ' ' + bodyText;
-  startTTS(text.trim());
+  if(body){
+    const cells = body.querySelectorAll('.wg .wc');
+    if(cells.length){
+      // 표가 있으면 글이 든 칸을 하나의 항목으로
+      cells.forEach(c => {
+        const t = sectionText(c);
+        if(t) out.push({ el: c, text: t, label: null });
+      });
+      // 표 밖 문단도 이어서
+      body.querySelectorAll(':scope > p, :scope > h3, :scope > h4, :scope > figure')
+        .forEach(el => { const t = sectionText(el); if(t) out.push({ el, text: t, label: null }); });
+    }else{
+      body.querySelectorAll(':scope > *').forEach(el => {
+        const t = sectionText(el); if(t) out.push({ el, text: t, label: null });
+      });
+      if(!out.length){
+        const t = sectionText(body); if(t) out.push({ el: body, text: t, label: null });
+      }
+    }
+  }
+  return out;
+}
+
+/* 요소의 읽을 글을 뽑습니다 (접힌 '사진 속 글'도 포함) */
+function sectionText(el){
+  if(!el) return '';
+  const c = el.cloneNode(true);
+  c.querySelectorAll('.imgtxt-body').forEach(x => x.classList.remove('open'));
+  c.querySelectorAll('.imgtxt-tog').forEach(x => x.remove());
+  c.style.cssText = 'position:absolute;left:-9999px;top:0;display:block';
+  c.querySelectorAll('.imgtxt-body').forEach(x => x.style.display = 'block');
+  document.body.appendChild(c);
+  const t = (c.innerText || '').replace(/\s+/g, ' ').trim();
+  c.remove();
+  return t;
+}
+
+/* 읽어주기 시작 / 일시정지 */
+function ttsToggle(id){
+  if(ttsPlay && ttsArtId === id){ ttsPlayPause(); return; }
+  const sameArticle = (ttsArtId === id && ttsSecs.length);
+  stopTTS(true);
+  ttsArtId = id;
+  ttsSecs = buildSections(id);
+  if(!ttsSecs.length){ setTtsState('읽을 내용이 없습니다.'); return; }
+  playSection(sameArticle && ttsSecIdx >= 0 ? ttsSecIdx : 0);
+}
+
+/* 특정 항목부터 읽습니다 */
+function playSection(i){
+  if(i < 0 || i >= ttsSecs.length){ stopTTS(); return; }
+  ttsSecIdx = i;
+  markSection(i);
+  startTTS(ttsSecs[i].text);
+}
+
+/* 지금 읽는 곳을 화면에 표시 */
+function markSection(i){
+  document.querySelectorAll('.tts-now').forEach(e => e.classList.remove('tts-now'));
+  const sec = ttsSecs[i];
+  if(sec && sec.el){
+    sec.el.classList.add('tts-now');
+    const r = sec.el.getBoundingClientRect();
+    if(r.top < 90 || r.bottom > window.innerHeight - 40){
+      sec.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+  const n = document.getElementById('ttss-' + ttsArtId);
+  if(n) n.textContent = `읽는 중 ${i+1} / ${ttsSecs.length}` + (ttsSecs[i].label ? ' · ' + ttsSecs[i].label : '');
+}
+
+/* 이전 / 다음 항목 */
+function ttsPrev(){
+  if(!ttsSecs.length){ toast && 0; return; }
+  playSection(Math.max(0, ttsSecIdx - 1));
+}
+function ttsNext(){
+  if(!ttsSecs.length) return;
+  if(ttsSecIdx + 1 >= ttsSecs.length){ stopTTS(); setTtsState('다 읽었습니다.'); return; }
+  playSection(ttsSecIdx + 1);
+}
+
+/* 한 항목을 다 읽으면 다음으로 (이어 듣기가 켜져 있을 때만) */
+let ttsAuto = true;
+function toggleTtsAuto(btn){
+  ttsAuto = !ttsAuto;
+  if(btn){
+    btn.classList.toggle('on', ttsAuto);
+    btn.textContent = ttsAuto ? '🔁 이어 듣기 켬' : '⏸ 한 항목만';
+  }
+  showToast(ttsAuto ? '한 항목이 끝나면 다음으로 이어서 읽습니다.' : '한 항목만 읽고 멈춥니다.');
 }
 
 function setTtsState(t){
@@ -1564,7 +1662,15 @@ function queueFrom(start, session){
     u.onend = () => {
       if(session !== ttsSession) return;
       ttsIdx = i; ttsMovedAt = Date.now();
-      if(i === ttsChunks.length - 1) stopTTS();
+      if(i === ttsChunks.length - 1){
+        // 한 항목이 끝났습니다
+        if(ttsAuto && ttsSecs.length && ttsSecIdx + 1 < ttsSecs.length){
+          setTimeout(() => playSection(ttsSecIdx + 1), 350);
+        }else{
+          stopTTS();
+          if(ttsSecs.length) setTtsState('다 읽었습니다.');
+        }
+      }
     };
     u.onerror = e => {
       const er = e && e.error;
@@ -1634,7 +1740,12 @@ function startWatch(){
     if(!ttsStarted) return;
 
     if(idle && gap > 1500){
-      if(ttsIdx >= ttsChunks.length - 1){ stopTTS(); return; }
+      if(ttsIdx >= ttsChunks.length - 1){
+        if(ttsAuto && ttsSecs.length && ttsSecIdx + 1 < ttsSecs.length){
+          playSection(ttsSecIdx + 1);
+        }else stopTTS();
+        return;
+      }
       // 중간에 끊긴 경우 — 다음 토막부터 다시 예약
       ttsMovedAt = Date.now();
       ttsQueuedTo = ttsIdx;                 // 여기까지만 예약된 것으로 보고 다시 이어붙임
@@ -1643,7 +1754,11 @@ function startWatch(){
   }, 500);
 }
 
-function stopTTS() {
+function stopTTS(keepSection) {
+  if(!keepSection){
+    document.querySelectorAll('.tts-now').forEach(e => e.classList.remove('tts-now'));
+    ttsSecs = []; ttsSecIdx = -1;
+  }
   ttsSession++;
   if(window.speechSynthesis) speechSynthesis.cancel();
   if(ttsWatch){ clearInterval(ttsWatch); ttsWatch=null; }
