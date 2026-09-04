@@ -457,18 +457,55 @@ img{max-width:100%}
 /* 인쇄 */
 @media print{
   #hd,.hero,.filter-bar,.wz-side,.wz-tools,.wz-tts,.donor,footer,
-  .a11y-panel,.mob-ov,.wz-zoom,.btn-a11y,#toTop{display:none !important}
-  body{background:#fff}
+  .a11y-panel,.mob-ov,.wz-zoom,.btn-a11y,#toTop,#wzToast{display:none !important}
+  html,body{background:#fff;margin:0;padding:0}
+
+  /* 글자 크기는 인쇄용 기본값으로 (크게 설정이 켜져 있어도) */
+  html{--fs:1 !important}
+
   .wz{display:block}
-  #articles.inner{max-width:100%;padding:0}
-  .wz-art{break-inside:avoid;page-break-inside:avoid;box-shadow:none;
-    border:1px solid #ccc;margin-bottom:14px}
-  .wz-art.span-half{grid-column:1 / -1}
+  #articles.inner{max-width:100%;padding:0;margin:0}
+  /* 첫 장이 비지 않도록 위쪽 여백 제거 */
+  main#main,#articles{margin-top:0 !important;padding-top:0 !important}
+  .wz-hd{margin-bottom:10px;padding-bottom:8px}
+  .wz-main{margin:0}
+
   #wzList{display:block}
+  .wz-art{break-inside:auto;page-break-inside:auto;box-shadow:none;
+    border:none;border-bottom:1px solid #ddd;margin:0 0 10px;padding:8px 0 10px}
+  .wz-art.span-half{grid-column:1 / -1}
+
+  /* ── 표: 인쇄 폭에 맞춰 다시 계산 ── */
+  .wz-body .wg{display:grid !important;gap:0 !important;
+    width:100%;margin:8px 0 !important;
+    break-inside:auto;page-break-inside:auto}
+  .wz-body .wg .wc{padding:6px 8px !important;min-width:0;
+    break-inside:avoid;page-break-inside:avoid;
+    display:block !important}
+  /* 4칸(사진|글|사진|글)은 인쇄에서 2단으로 접습니다 — 한 줄에 글이 넉넉히 들어가도록 */
+  .wz-body .wg[data-cols="4"]{grid-template-columns:30% 70% !important}
+  .wz-body .wg[data-cols="2"]{grid-template-columns:30% 70% !important}
+  .wz-body .wg[data-cols="6"]{grid-template-columns:30% 70% !important}
+  .wz-body .wg[data-cols="3"]{grid-template-columns:30% 70% !important}
+  /* 넓게 합친 칸은 한 줄 전체를 쓰게 */
+  .wz-body .wg .wc[data-span]{grid-column:1 / -1 !important}
+
+  .wz-body .wg img{width:100% !important;height:auto !important;max-width:100% !important}
+  .wz-body{font-size:9.5pt;line-height:1.5}
+  .wz-body p{margin:0 0 4px}
+  .wz-art h3{font-size:13pt;margin-bottom:5px}
+  .wz-sum{font-size:9.5pt;padding:7px 10px;margin-bottom:8px}
+  .wz-hd-t{font-size:16pt}
+
+  /* 낱글자로 쪼개지지 않게 */
+  .wz-body,.wz-body *{word-break:keep-all !important;overflow-wrap:break-word !important;
+    hyphens:none}
+
   .imgtxt-body{display:block !important}
-  .imgtxt-tog{display:none !important}
+  .imgtxt-tog,.tts-now::after{display:none !important}
+  .tts-now{background:transparent !important;outline:none !important}
   a[href]:after{content:''}
-  @page{size:A4;margin:14mm 12mm}
+  @page{size:A4;margin:12mm 10mm}
 }
 
 /* 기사 목록 — 2단 배치 지원 */
@@ -2061,15 +2098,34 @@ function showToast(msg){
 
 /* 인쇄 — 접힌 '사진 속 글'을 펼치고 인쇄한 뒤 되돌립니다 */
 function printIssue(){
+  // 읽어주기가 돌고 있으면 멈춥니다 (인쇄 중 표시가 찍히지 않게)
+  if(typeof stopTTS === 'function') stopTTS();
+
   const opened = [];
   document.querySelectorAll('.imgtxt-body').forEach(b => {
     if(!b.classList.contains('open')){ b.classList.add('open'); opened.push(b); }
   });
-  showToast('🖨 인쇄 창을 준비하고 있습니다...');
+
+  // 인쇄용으로 글자 크기를 기본값으로 잠시 되돌립니다
+  const r = document.documentElement;
+  const fzL = r.classList.contains('fz-l'), fzX = r.classList.contains('fz-x');
+  r.classList.remove('fz-l','fz-x');
+
+  // 알림창이 종이에 찍히지 않도록 먼저 감춥니다
+  const t = document.getElementById('wzToast');
+  if(t) t.style.opacity = '0';
+
+  const restore = () => {
+    opened.forEach(b => b.classList.remove('open'));
+    if(fzL) r.classList.add('fz-l');
+    if(fzX) r.classList.add('fz-x');
+  };
+  window.addEventListener('afterprint', restore, { once: true });
+
   setTimeout(() => {
     window.print();
-    setTimeout(() => opened.forEach(b => b.classList.remove('open')), 400);
-  }, 300);
+    setTimeout(restore, 800);     // afterprint 를 지원하지 않는 브라우저 대비
+  }, 120);
 }
 
 /* 주소에 ?issue=2026-09 가 있으면 그 호를 바로 보여줍니다 */
