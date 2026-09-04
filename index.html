@@ -424,7 +424,7 @@ img{max-width:100%}
 .wz-hd-t{font-size:calc(1.5rem*var(--fs));font-weight:900;color:var(--c1);margin:4px 0 5px}
 .wz-hd-d{font-size:calc(.83rem*var(--fs));color:var(--ink-s)}
 
-/* 글자를 키우면 격자도 함께 넓어지도록 — 좁은 칸에 큰 글자가 갇히는 것 방지 */
+/* 글자를 키우면 표도 함께 넓어지도록 — 좁은 칸에 큰 글자가 갇히는 것 방지 */
 .fz-l .wz-body .wg,
 .fz-x .wz-body .wg{grid-template-columns:minmax(0,1fr) !important;gap:14px}
 .fz-l .wz-body .wg .wc[data-span],
@@ -513,8 +513,8 @@ img{max-width:100%}
 .wz-body [contenteditable]{ -webkit-user-modify:read-only !important; user-modify:read-only !important; }
 .wz-body{ -webkit-user-select:text; user-select:text; }
 
-/* 본문 안 격자(표) */
-/* 표 모양 격자 — 같은 줄의 칸은 높이를 맞춥니다 */
+/* 본문 안 표 */
+/* 표 — 같은 줄의 칸은 높이를 맞춥니다 */
 .wz-body .wg{display:grid;gap:0;margin:20px 0;align-items:stretch;
   border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
 .wz-body .wg .wc{min-width:0;padding:16px;border:1px solid var(--line);
@@ -556,6 +556,13 @@ img{max-width:100%}
 .wz-body .wz-btn{transition:filter .16s, transform .16s}
 a.wz-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
 .wz-body .wz-btn{max-width:100%}
+
+/* 크기를 직접 지정한 사진은 그 크기를 지킵니다 (칸보다 크면 칸에 맞춤) */
+.wz-body img[data-px]{max-width:100%;height:auto}
+@media(max-width:640px){
+  /* 휴대폰에서는 화면 폭에 맞춥니다 */
+  .wz-body img[data-px]{width:100% !important}
+}
 
 /* 사진 속 글자 — 접었다 펴기 */
 .wz-body figure.imgtxt{margin:16px 0}
@@ -1231,7 +1238,7 @@ function render() {
     // 본문에서 사진을 분리 — 글은 위, 사진은 아래 갤러리로
     const tmp = document.createElement('div');
     tmp.innerHTML = a.content || `<p>${a.summary||''}</p>`;
-    // 격자(표) 안의 사진은 배치를 살려 그대로 두고, 격자 밖 사진만 따로 모읍니다
+    // 표(표) 안의 사진은 배치를 살려 그대로 두고, 표 밖 사진만 따로 모읍니다
     // 예전에 저장된 사진의 꼬리표(?t=...)와 잘못 남은 반투명을 걷어냅니다
     tmp.querySelectorAll('img').forEach(im => {
       const v = im.getAttribute('src') || '';

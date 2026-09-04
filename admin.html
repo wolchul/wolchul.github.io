@@ -186,14 +186,13 @@ input,select,textarea{font-family:inherit}
 .img-box-title{font-size:.78rem;font-weight:800;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 /* 드래그 앤 드롭 영역 */
 .drop-zone{border:2.5px dashed var(--sky);border-radius:12px;background:var(--white);
-  padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px;
+  padding:26px 20px;text-align:center;transition:all .2s;margin-bottom:10px;
   position:relative}
 .drop-zone:hover,.drop-zone.drag-over{background:var(--sky-l);border-color:var(--sky-d)}
 .drop-zone.drag-over{transform:scale(1.01);box-shadow:0 4px 20px rgba(91,184,232,.25)}
 .drop-ico{font-size:2.2rem;margin-bottom:8px}
 .drop-txt{font-size:.82rem;font-weight:700;color:var(--navy);margin-bottom:4px}
 .drop-sub{font-size:.72rem;color:var(--text-s)}
-.drop-input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 /* URL 입력 */
 .img-url-row{display:flex;gap:8px;margin-bottom:8px}
 .img-url-row input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:.8rem;background:var(--white);color:var(--text);outline:none}
@@ -273,8 +272,17 @@ input,select,textarea{font-family:inherit}
 .dz-pat-vw{height:46px;position:relative}
 .dz-pat-nm{font-size:.66rem;font-weight:700;color:var(--text);background:var(--white);
   padding:4px;text-align:center}
-/* 편집기 격자 */
+/* 편집기 표 */
 .ct-sep{display:inline-block;width:1px;height:18px;background:var(--border);margin:0 5px;vertical-align:middle}
+.drop-btns{display:flex;gap:9px;justify-content:center;margin-top:12px;flex-wrap:wrap;
+  position:relative;z-index:3}
+.dz-b{border:none;border-radius:8px;padding:9px 18px;font-size:.81rem;font-weight:800;
+  cursor:pointer;font-family:inherit;transition:all .16s}
+.dz-file{background:var(--navy);color:#fff}
+.dz-file:hover{filter:brightness(1.15)}
+.dz-lib{background:var(--sky);color:#fff}
+.dz-lib:hover{filter:brightness(1.1)}
+
 /* 사진 크기 조절 손잡이 */
 .rz-box{position:absolute;pointer-events:none;z-index:60;outline:2px solid var(--sky);outline-offset:1px}
 .rz-h{position:absolute;width:13px;height:13px;background:var(--sky);border:2px solid #fff;
@@ -287,7 +295,7 @@ input,select,textarea{font-family:inherit}
   box-shadow:0 2px 6px rgba(0,0,0,.25);transition:all .12s}
 .rz-size.big{font-size:.86rem;padding:5px 13px;top:-34px;background:var(--navy)}
 
-/* 격자 눈금 */
+/* 표 눈금 */
 .cg-ruler span{position:absolute;top:3px;text-align:center;font-size:.64rem;font-weight:800;
   color:#fff;background:rgba(45,136,181,.85);border-radius:0 0 4px 0;padding:1px 0;
   box-sizing:border-box;overflow:hidden;white-space:nowrap;max-width:100%}
@@ -298,7 +306,7 @@ input,select,textarea{font-family:inherit}
   padding:5px 11px;border-radius:6px;white-space:nowrap;pointer-events:none;
   box-shadow:0 2px 8px rgba(0,0,0,.3);display:none}
 
-/* 격자 세로선 끌어서 칸 너비 조절 */
+/* 표 세로선 끌어서 칸 너비 조절 */
 .cg-bar{position:absolute;z-index:55;pointer-events:none}
 .cg-h{position:absolute;top:0;bottom:0;width:9px;margin-left:-4px;cursor:col-resize;
   pointer-events:auto;background:transparent}
@@ -573,13 +581,16 @@ input,select,textarea{font-family:inherit}
             </div>
             <!-- 드래그 앤 드롭 영역 -->
             <div class="drop-zone" id="dropZone">
-              <input type="file" class="drop-input" id="fileInput" accept="image/*" multiple>
+              <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
               <div class="drop-ico">🖼️</div>
               <div class="drop-txt" id="dropTitle">사진을 여기에 끌어다 놓으세요</div>
               <div class="drop-sub" id="dropSub">여러 장을 한 번에 올릴 수 있습니다. 자동으로 크기를 줄여 저장하고 본문에 넣어드립니다.</div>
-              <button type="button" onclick="phOpen()" style="margin-top:10px;border:none;
-                background:var(--sky);color:#fff;border-radius:7px;padding:8px 18px;
-                font-size:.8rem;font-weight:800;cursor:pointer">🖼 사진 보관함 열기</button>
+              <div class="drop-btns">
+                <button type="button" class="dz-b dz-file" onclick="pickFiles(event)">
+                  📁 내 컴퓨터에서 고르기</button>
+                <button type="button" class="dz-b dz-lib" onclick="phOpen(event)">
+                  🖼 사진 보관함 열기</button>
+              </div>
             </div>
             <div class="upload-progress" id="uploadProgress">
               <div class="upload-progress-bar" id="uploadBar"></div>
@@ -620,7 +631,7 @@ input,select,textarea{font-family:inherit}
                   <span class="ct-sep"></span>
                   <button onclick="toggleSelMode()" type="button" id="selModeBtn"
                     title="켜면 마우스로 끌어서 여러 칸을 고르고, 칸 내용을 옮길 수 있습니다">▤ 칸 선택</button>
-                  <button onclick="gridAsk()" type="button" title="격자(표) 넣기">▦ 격자 넣기</button>
+                  <button onclick="gridAsk()" type="button" title="표 넣기">▦ 표 넣기</button>
                   <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
                   <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
                   <button onclick="colAdd()" type="button" title="가로 칸 하나 늘리기">＋칸</button>
@@ -629,12 +640,12 @@ input,select,textarea{font-family:inherit}
                   <button onclick="cellMergeSel()" type="button" title="Ctrl+클릭으로 고른 칸들을 하나로 합치기">⊡ 칸 합치기</button>
                   <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥ 넓히기</button>
                   <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤ 좁히기</button>
-                  <button onclick="const n=repairGrids(); toast(n?('어긋난 '+n+'곳을 바로잡았습니다.'):'격자에 이상이 없습니다.','ok')"
-                    type="button" title="격자가 깨졌을 때 모양 바로잡기">🔧 격자 복구</button>
-                  <button onclick="gridDel()" type="button" title="격자 전체 삭제">▨ 격자 삭제</button>
+                  <button onclick="const n=repairGrids(); toast(n?('어긋난 '+n+'곳을 바로잡았습니다.'):'표에 이상이 없습니다.','ok')"
+                    type="button" title="표가 깨졌을 때 모양 바로잡기">🔧 표 복구</button>
+                  <button onclick="gridDel()" type="button" title="표 전체 삭제">▨ 표 삭제</button>
                   <span class="ct-sep"></span>
                   <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
-                  <button onclick="bgPick('grid')" type="button" title="격자 전체 배경색">🎨 표 배경</button>
+                  <button onclick="bgPick('grid')" type="button" title="표 전체 배경색">🎨 표 배경</button>
                   <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
                   <button onclick="lineDlg()" type="button" title="표 선 모양·굵기·색상">┼ 선 모양</button>
                   <button onclick="btnDlg()" type="button" title="자세히 보기 같은 버튼 넣기"
@@ -672,11 +683,11 @@ input,select,textarea{font-family:inherit}
                   <button type="button" onclick="phOpen()" style="border:1px solid var(--sky);
                     background:var(--sky-l);color:var(--sky);border-radius:5px;padding:4px 11px;
                     font-size:.73rem;font-weight:800">🖼 사진 보관함</button>
-                  <span id="insHint">📍 삽입 위치: 본문 (격자 밖)</span>
+                  <span id="insHint">📍 삽입 위치: 본문 (표 밖)</span>
                   <span id="imgSel" style="margin-left:auto;color:var(--sky);font-weight:700"></span>
                   <button type="button" onclick="clearCell()" style="border:1px solid var(--border);
                     background:var(--white);border-radius:5px;padding:3px 9px;font-size:.71rem;font-weight:700">
-                    격자 선택 해제</button>
+                    표 선택 해제</button>
                 </div>
                 <div id="cedit" contenteditable="true" spellcheck="false"></div>
                 <textarea id="csrc"></textarea>
@@ -1079,7 +1090,7 @@ input,select,textarea{font-family:inherit}
 <div class="conf" id="lineDlgBox">
   <div class="conf-box" style="max-width:440px">
     <h3>┼ 표 선 모양</h3>
-    <p style="margin-bottom:14px">선택한 격자의 테두리를 정합니다.</p>
+    <p style="margin-bottom:14px">선택한 표의 테두리를 정합니다.</p>
 
     <div class="sf" style="margin-bottom:12px">
       <label>굵기</label>
@@ -1166,10 +1177,10 @@ input,select,textarea{font-family:inherit}
   </div>
 </div>
 
-<!-- 격자 만들기 -->
+<!-- 표 만들기 -->
 <div class="conf" id="gridDlg">
   <div class="conf-box" style="max-width:340px">
-    <h3>▦ 격자 만들기</h3>
+    <h3>▦ 표 만들기</h3>
     <p style="margin-bottom:14px">가로 칸 수와 세로 줄 수를 입력해 주세요.</p>
     <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px">
       <div style="text-align:center">
@@ -2161,7 +2172,7 @@ function restoreCaret(){
   }
   return null;
 }
-/* 커서가 지금 어느 격자 칸 안에 있는지 */
+/* 커서가 지금 어느 표 칸 안에 있는지 */
 function caretCell(){
   const r = lastRange; if(!r) return null;
   let n = r.startContainer;
@@ -2172,7 +2183,7 @@ function caretCell(){
 function showInsertHint(){
   const el = gi('insHint'); if(!el) return;
   const c = caretCell();
-  el.textContent = c ? '📍 삽입 위치: 격자 칸 안' : '📍 삽입 위치: 본문 (격자 밖)';
+  el.textContent = c ? '📍 삽입 위치: 표 칸 안' : '📍 삽입 위치: 본문 (표 밖)';
   el.style.color = c ? 'var(--sky)' : 'var(--text-s)';
 }
 
@@ -2256,7 +2267,7 @@ function insertImageInto(url){
   bindGrid(); saveCaret(); showInsertHint(); syncSrc();
 }
 
-/* ═══════ 본문 격자(표) 편집 ═══════
+/* ═══════ 본문 표(표) 편집 ═══════
    한글의 '표'처럼 칸을 만들고, 칸 안에 사진과 글을 넣습니다.
    사진은 끌어서 다른 칸으로 옮길 수 있습니다. */
 let selCell = null, selImg = null;
@@ -2281,15 +2292,15 @@ function gridInsert(cols, rows){
   gi('cedit').focus();
   document.execCommand('insertHTML', false, html);
   bindGrid(); syncSrc();
-  toast('가로 '+cols+'칸 × 세로 '+rows+'줄 격자를 넣었습니다.','ok');
+  toast('가로 '+cols+'칸 × 세로 '+rows+'줄 표를 넣었습니다.','ok');
 }
 
 function gridDel(){
   const g = selCell ? selCell.closest('.wg') : null;
-  if(!g){ toast('지울 격자의 칸을 먼저 클릭해 주세요.','err'); return; }
-  if(!confirm('이 격자를 지울까요? 안의 내용도 함께 지워집니다.')) return;
+  if(!g){ toast('지울 표의 칸을 먼저 클릭해 주세요.','err'); return; }
+  if(!confirm('이 표를 지울까요? 안의 내용도 함께 지워집니다.')) return;
   g.remove(); selCell = null; selImg = null; syncSrc();
-  toast('격자를 지웠습니다.','ok');
+  toast('표를 지웠습니다.','ok');
 }
 
 /* 선택한 칸이 몇 번째 줄에 있는지 계산 (넓힌 칸까지 감안) */
@@ -2329,7 +2340,7 @@ function rowAdd(){
 function rowDel(){
   if(!selCell){ toast('지울 줄의 칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info || info.row == null) return;
-  if(info.rows.length <= 1){ toast('마지막 한 줄은 지울 수 없습니다. 격자 삭제를 사용해 주세요.','err'); return; }
+  if(info.rows.length <= 1){ toast('마지막 한 줄은 지울 수 없습니다. 표 삭제를 사용해 주세요.','err'); return; }
   if(!confirm((info.row+1)+'번째 줄을 지울까요? 그 줄의 내용도 함께 지워집니다.')) return;
   info.rows[info.row].forEach(c => c.remove());
   selCell = null; selImg = null;
@@ -2338,7 +2349,7 @@ function rowDel(){
 }
 
 function colAdd(){
-  if(!selCell){ toast('격자의 칸을 먼저 클릭해 주세요.','err'); return; }
+  if(!selCell){ toast('표의 칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info) return;
   if(info.cols >= 6){ toast('가로는 최대 6칸까지입니다.','err'); return; }
   const cols = info.cols + 1;
@@ -2557,7 +2568,15 @@ async function uploadFiles(files){
    글을 쓰다가 화면을 벗어나지 않고 사진을 넣을 수 있습니다. */
 const REPO = 'wolchul/wolchul.github.io';
 
-function phOpen(){
+/* 내 컴퓨터에서 사진 고르기 */
+function pickFiles(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  const inp = gi('fileInput');
+  if(inp) inp.click();
+}
+
+function phOpen(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
   saveCaret();                      // 지금 커서 자리를 기억해 둡니다
   gi('phModal').classList.add('open');
   phSyncUpLink();
@@ -2625,7 +2644,7 @@ function phPick(path){
 
 
 
-/* ═══════ 격자 세로선을 끌어 칸 너비 조절 ═══════ */
+/* ═══════ 표 세로선을 끌어 칸 너비 조절 ═══════ */
 let cgBar = null, cgGrid = null;
 
 function showColBars(g){
@@ -2693,6 +2712,17 @@ function curFrs(g, cols){
 function placeColBars(){
   if(!cgBar || !cgGrid || !document.body.contains(cgGrid)) return hideColBars();
   const r = cgGrid.getBoundingClientRect();
+  // 편집창 밖으로 밀려 나가면 눈금을 감춥니다 (스크롤 시 도구 모음 위로 새는 것 방지)
+  const wrap = gi('cedit') && gi('cedit').closest('.ce');
+  if(wrap){
+    const wr = wrap.getBoundingClientRect();
+    const visible = r.bottom > wr.top + 4 && r.top < wr.bottom - 4;
+    cgBar.style.display = visible ? '' : 'none';
+    // 편집창 안에서만 보이도록 잘라냅니다
+    const top = Math.max(r.top, wr.top), bot = Math.min(r.bottom, wr.bottom);
+    cgBar.style.clipPath = `inset(${Math.max(0, top - r.top)}px 0 ${Math.max(0, r.bottom - bot)}px 0)`;
+    if(!visible) return;
+  }
   cgBar.style.left = (r.left + window.scrollX) + 'px';
   cgBar.style.top = (r.top + window.scrollY) + 'px';
   cgBar.style.width = r.width + 'px';
@@ -2745,6 +2775,11 @@ function hideColBars(){
   if(cgBar){ cgBar.remove(); cgBar = null; cgGrid = null; }
 }
 window.addEventListener('scroll', placeColBars, true);
+document.addEventListener('scroll', e => {
+  if(e.target && e.target.classList && e.target.classList.contains('ce')){
+    placeColBars(); placeHandles();
+  }
+}, true);
 window.addEventListener('resize', placeColBars);
 
 /* ═══════ 사진 크기 — 숫자 입력 ═══════ */
@@ -2849,6 +2884,13 @@ function showHandles(im){
 function placeHandles(dragging){
   if(!rzHandles || !rzTarget || !document.body.contains(rzTarget)) return hideHandles();
   const r = rzTarget.getBoundingClientRect();
+  const wrap = gi('cedit') && gi('cedit').closest('.ce');
+  if(wrap){
+    const wr = wrap.getBoundingClientRect();
+    const visible = r.bottom > wr.top + 4 && r.top < wr.bottom - 4;
+    rzHandles.style.display = visible ? '' : 'none';
+    if(!visible) return;
+  }
   const b = rzHandles;
   b.style.left = (r.left + window.scrollX) + 'px';
   b.style.top  = (r.top + window.scrollY) + 'px';
@@ -3023,7 +3065,7 @@ function toggleSelMode(){
     : '글 편집 모드로 돌아왔습니다.', 'ok');
 }
 
-/* 격자 안에서 두 칸 사이의 모든 칸을 구합니다 (사각형 범위) */
+/* 표 안에서 두 칸 사이의 모든 칸을 구합니다 (사각형 범위) */
 function cellsBetween(a, b){
   const g = a.closest('.wg');
   if(!g || b.closest('.wg') !== g) return [a];
@@ -3102,8 +3144,8 @@ function bindSelMode(){
   });
 }
 
-/* ═══════ 저장 전 격자 굳히기 ═══════
-   격자 모양을 기사 안에 직접 새겨 넣습니다.
+/* ═══════ 저장 전 표 굳히기 ═══════
+   표 모양을 기사 안에 직접 새겨 넣습니다.
    그래야 나중에 사이트 디자인이 바뀌어도 예전 기사가 흐트러지지 않습니다. */
 function normalizeGrids(){
   const ed = gi('cedit'); if(!ed) return;
@@ -3164,7 +3206,7 @@ function cellSplitH(){
     const nc = newCell(rest);
     selCell.after(nc);
   }else{
-    // 보통 칸이면 격자 전체를 두 배로 잘게 나눈 뒤, 다른 칸은 폭을 두 배로 유지
+    // 보통 칸이면 표 전체를 두 배로 잘게 나눈 뒤, 다른 칸은 폭을 두 배로 유지
     const cols = info.cols * 2;
     if(cols > 12){ toast('더 이상 나눌 수 없습니다.','err'); return; }
     info.grid.dataset.cols = cols;
@@ -3199,7 +3241,7 @@ function cellMergeSel(){
   }
   const g = list[0].closest('.wg');
   if(list.some(c => c.closest('.wg') !== g)){
-    toast('같은 격자 안의 칸만 합칠 수 있습니다.','err'); return;
+    toast('같은 표 안의 칸만 합칠 수 있습니다.','err'); return;
   }
   const info = cellRowInfo(list[0]); if(!info) return;
 
@@ -3239,7 +3281,7 @@ function cellMergeSel(){
 }
 
 /* ═══════ 글 정렬 ═══════
-   격자 칸 안이면 그 칸에만, 밖이면 본문 문단에 적용됩니다. */
+   표 칸 안이면 그 칸에만, 밖이면 본문 문단에 적용됩니다. */
 function alignText(dir){
   const ed = gi('cedit'); if(!ed) return;
   const map = { Left:'left', Center:'center', Right:'right', Full:'justify' };
@@ -3284,7 +3326,7 @@ const LC = ['#333333','#9fb0be','#1b4332','#40916c','#2d88b5','#c05600','#a04752
 
 function lineDlg(){
   const g = selCell ? selCell.closest('.wg') : null;
-  if(!g){ toast('격자의 칸을 먼저 클릭해 주세요.','err'); return; }
+  if(!g){ toast('표의 칸을 먼저 클릭해 주세요.','err'); return; }
   const mk = (arr, fn) => arr.map(([v,n]) =>
     `<button class="btn bo bsm" onclick="${fn}('${v}')">${n}</button>`).join('');
   gi('lwRow').innerHTML = mk(LW,'setLineW')
@@ -3302,7 +3344,7 @@ function lineDlg(){
 
 function curGrid(){ return selCell ? selCell.closest('.wg') : null; }
 
-/* 격자에 저장된 선 설정을 실제 스타일로 적용 */
+/* 표에 저장된 선 설정을 실제 스타일로 적용 */
 function applyLine(g){
   if(!g) return;
   const tp = g.dataset.line === 'none';
@@ -3384,12 +3426,12 @@ function bgPick(mode){
   if(mode==='cell' && !selCell){ toast('배경을 칠할 칸을 먼저 클릭해 주세요.','err'); return; }
   if(mode==='grid'){
     const g = selCell ? selCell.closest('.wg') : null;
-    if(!g){ toast('격자의 칸을 먼저 클릭해 주세요.','err'); return; }
+    if(!g){ toast('표의 칸을 먼저 클릭해 주세요.','err'); return; }
   }
   bgMode = mode;
   gi('bgTarget').textContent = (mode==='cell')
     ? '선택한 칸의 배경색을 정합니다.'
-    : '격자 전체의 배경색을 정합니다.';
+    : '표 전체의 배경색을 정합니다.';
   gi('bgSwatches').innerHTML = BG_COLORS.map(c =>
     `<button onclick="bgApply('${c}')" title="${c}"
       style="height:38px;border:1.5px solid #d0d7de;border-radius:6px;background:${c};cursor:pointer"></button>`
@@ -3423,7 +3465,7 @@ function cellPad(){
   toast('칸 여백: ' + names[i], 'ok');
 }
 
-/* 격자 선택을 풀어 본문 자리에 넣도록 되돌립니다 */
+/* 표 선택을 풀어 본문 자리에 넣도록 되돌립니다 */
 function clearCell(){
   const ed = gi('cedit'); if(!ed) return;
   ed.querySelectorAll('.wc').forEach(x=>x.classList.remove('sel'));
@@ -3431,16 +3473,16 @@ function clearCell(){
   selCell = null; selImg = null; lastRange = null;
   const st = gi('imgSel'); if(st) st.textContent = '';
   showInsertHint();
-  toast('격자 선택을 해제했습니다. 이제 본문에 사진이 들어갑니다.','ok');
+  toast('표 선택을 해제했습니다. 이제 본문에 사진이 들어갑니다.','ok');
 }
 
-/* 격자가 어긋났는지 검사하고 바로잡습니다.
+/* 표가 어긋났는지 검사하고 바로잡습니다.
    (칸 개수가 줄 수와 맞지 않으면 화면이 뒤틀립니다) */
 function repairGrids(){
   const ed = gi('cedit'); if(!ed) return 0;
   let fixed = 0;
 
-  // 붙여넣기로 딸려온 칸 껍데기(.wc)가 격자 밖에 떠 있으면 벗겨냅니다
+  // 붙여넣기로 딸려온 칸 껍데기(.wc)가 표 밖에 떠 있으면 벗겨냅니다
   ed.querySelectorAll('.wc').forEach(el => {
     if(!el.parentElement || !el.parentElement.classList.contains('wg')){
       el.replaceWith(...el.childNodes); fixed++;
@@ -3487,7 +3529,7 @@ function repairGrids(){
       }
       fixed++;
     }
-    // 칸이 하나도 없으면 격자 자체를 제거
+    // 칸이 하나도 없으면 표 자체를 제거
     if(!g.querySelector(':scope > .wc')){ g.remove(); fixed++; }
   });
   if(fixed){ bindGrid(); syncSrc(); }
@@ -3516,7 +3558,7 @@ function bindPaste(){
       saveCaret(); syncSrc(); return;
     }
 
-    // 격자·칸 껍데기를 벗기고 안의 내용만 남깁니다
+    // 표·칸 껍데기를 벗기고 안의 내용만 남깁니다
     const box = document.createElement('div');
     box.innerHTML = html;
     box.querySelectorAll('.wg, .wc').forEach(el => el.replaceWith(...el.childNodes));
@@ -3670,6 +3712,7 @@ function cleanHTML(h){
   return String(h||'')
     .replace(/(<img[^>]+src=")([^"]*?)\?t=\d+(")/gi, '$1$2$3')   // 재시도용 꼬리표 제거
     .replace(/opacity:\s*0?\.\d+;?/gi, '')                        // 잘못 남은 반투명 제거
+    .replace(/(<img(?![^>]*max-width)[^>]*style=")/gi, '$1max-width:100%;')  // 칸을 넘지 않게
     .replace(/\s+data-b="1"/g,'')
     .replace(/\s+data-new="1"/g,'')
     .replace(/\s+contenteditable="[^"]*"/gi,'')   // 방문자가 본문에 글을 못 쓰도록
@@ -3796,7 +3839,7 @@ const DZ_THEMES = {
 };
 
 const DZ_PATTERNS = {
-  grid:  '격자',
+  grid:  '바둑판',
   none:  '없음',
   dots:  '물방울',
   diag:  '사선',
