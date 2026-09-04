@@ -296,11 +296,25 @@ input,select,textarea{font-family:inherit}
 .rz-size.big{font-size:.86rem;padding:5px 13px;top:-34px;background:var(--navy)}
 
 /* 표 눈금 */
-.cg-ruler span{position:absolute;top:3px;text-align:center;font-size:.64rem;font-weight:800;
-  color:#fff;background:rgba(45,136,181,.85);border-radius:0 0 4px 0;padding:1px 0;
-  box-sizing:border-box;overflow:hidden;white-space:nowrap;max-width:100%}
-.cg-total{position:absolute;bottom:3px;right:4px;font-size:.64rem;font-weight:800;
-  color:#fff;background:rgba(45,136,181,.85);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.cg-ruler span{position:absolute;top:-15px;height:14px;line-height:14px;text-align:center;
+  font-size:.6rem;font-weight:800;color:var(--sky);background:transparent;
+  box-sizing:border-box;overflow:hidden;white-space:nowrap;max-width:100%;
+  border-left:1px solid rgba(45,136,181,.45);border-right:1px solid rgba(45,136,181,.45)}
+.cg-total{position:absolute;top:-15px;right:0;font-size:.6rem;font-weight:800;
+  color:var(--text-s);white-space:nowrap;background:var(--white);padding:0 4px}
+/* 표 위쪽에 눈금이 들어갈 자리를 비워둡니다 */
+#cedit .wg{margin-top:22px;position:relative}
+
+/* 표를 끌어서 옮기는 손잡이 */
+#cedit .wg::before{content:'⠿';position:absolute;left:-19px;top:6px;
+  width:17px;height:24px;line-height:24px;text-align:center;
+  color:#b9c6d1;font-size:.9rem;cursor:grab;border-radius:4px;
+  background:var(--white);border:1px solid var(--border);opacity:0;transition:opacity .15s}
+#cedit .wg:hover::before{opacity:1}
+#cedit .wg.blk-drag{opacity:.45}
+#cedit .blk-moved{animation:blkFlash .7s ease}
+@keyframes blkFlash{0%{background:#fff6d8}100%{background:transparent}}
+#cedit .blk-line{height:3px;background:var(--sky);border-radius:2px;margin:4px 0}
 .drag-tip{position:absolute;z-index:70;transform:translate(-50%,-100%);
   background:var(--navy);color:#fff;font-size:.78rem;font-weight:800;
   padding:5px 11px;border-radius:6px;white-space:nowrap;pointer-events:none;
@@ -642,6 +656,10 @@ input,select,textarea{font-family:inherit}
                   <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤ 좁히기</button>
                   <button onclick="const n=repairGrids(); toast(n?('어긋난 '+n+'곳을 바로잡았습니다.'):'표에 이상이 없습니다.','ok')"
                     type="button" title="표가 깨졌을 때 모양 바로잡기">🔧 표 복구</button>
+                  <button onclick="blockMove(-1)" type="button" title="이 표(또는 문단)를 위로 옮기기">▲ 위로</button>
+                  <button onclick="blockMove(1)" type="button" title="이 표(또는 문단)를 아래로 옮기기">▼ 아래로</button>
+                  <button onclick="blockAround('before')" type="button" title="표 위에 글 쓸 줄 넣기">↑글줄</button>
+                  <button onclick="blockAround('after')" type="button" title="표 아래에 글 쓸 줄 넣기">↓글줄</button>
                   <button onclick="gridDel()" type="button" title="표 전체 삭제">▨ 표 삭제</button>
                   <span class="ct-sep"></span>
                   <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
@@ -1956,7 +1974,7 @@ function newArt(){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -1981,7 +1999,7 @@ function editArt(id){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -3317,6 +3335,113 @@ function cellVAlign(){
   list.forEach(c => { c.style.justifyContent = steps[i]; c.dataset.va = steps[i]; });
   syncSrc();
   toast('칸 세로 위치: ' + names[i], 'ok');
+}
+
+
+/* ═══════ 표·문단을 글자처럼 옮기기 ═══════
+   한글에서 표를 잘라내 다른 위치에 붙이는 것과 같은 동작입니다. */
+
+/* 지금 커서(또는 선택한 칸)가 속한 최상위 덩어리를 찾습니다 */
+function currentBlock(){
+  const ed = gi('cedit'); if(!ed) return null;
+  // 표 안에 있으면 그 표 전체
+  if(selCell && ed.contains(selCell)){
+    const g = selCell.closest('.wg');
+    if(g && g.parentElement === ed) return g;
+  }
+  // 아니면 커서가 있는 문단
+  let n = lastRange ? lastRange.startContainer : null;
+  if(n && n.nodeType === 3) n = n.parentElement;
+  while(n && n.parentElement && n.parentElement !== ed) n = n.parentElement;
+  return (n && n.parentElement === ed) ? n : null;
+}
+
+function blockMove(dir){
+  const ed = gi('cedit');
+  const b = currentBlock();
+  if(!b){ toast('옮길 표나 문단을 먼저 클릭해 주세요.','err'); return; }
+
+  const sib = dir < 0 ? b.previousElementSibling : b.nextElementSibling;
+  if(!sib){
+    toast(dir < 0 ? '이미 맨 위에 있습니다.' : '이미 맨 아래에 있습니다.','err');
+    return;
+  }
+  if(dir < 0) ed.insertBefore(b, sib);
+  else ed.insertBefore(sib, b);
+
+  // 옮긴 자리가 보이도록 스크롤
+  b.scrollIntoView({block:'nearest', behavior:'smooth'});
+  b.classList.add('blk-moved');
+  setTimeout(() => b.classList.remove('blk-moved'), 700);
+  bindGrid(); placeColBars(); placeHandles(); syncSrc();
+  toast(dir < 0 ? '위로 옮겼습니다.' : '아래로 옮겼습니다.','ok');
+}
+
+/* 표 왼쪽 손잡이를 끌어서 다른 위치로 옮깁니다 */
+function bindBlockDrag(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.bd) return;
+  ed.dataset.bd = '1';
+  let src = null, line = null;
+
+  ed.addEventListener('mousedown', e => {
+    const g = e.target.closest && e.target.closest('.wg');
+    if(!g || g.parentElement !== ed) return;
+    const r = g.getBoundingClientRect();
+    if(e.clientX > r.left - 2) return;      // 왼쪽 손잡이 영역만
+    e.preventDefault();
+    src = g; g.classList.add('blk-drag');
+    line = document.createElement('div');
+    line.className = 'blk-line';
+
+    const move = e2 => {
+      if(!src) return;
+      const blocks = [...ed.children].filter(x => x !== src && x !== line);
+      let target = null, after = false;
+      for(const b of blocks){
+        const br = b.getBoundingClientRect();
+        if(e2.clientY < br.top + br.height / 2){ target = b; after = false; break; }
+        target = b; after = true;
+      }
+      if(target){ after ? target.after(line) : ed.insertBefore(line, target); }
+    };
+    const up = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      if(src && line && line.parentElement){
+        line.replaceWith(src);
+        src.classList.add('blk-moved');
+        setTimeout(() => src && src.classList.remove('blk-moved'), 700);
+        bindGrid(); syncSrc();
+        toast('표를 옮겼습니다.','ok');
+      }
+      if(line && line.parentElement) line.remove();
+      if(src) src.classList.remove('blk-drag');
+      src = null; line = null;
+      placeColBars(); placeHandles();
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+/* 표 위/아래에 글 쓸 빈 줄을 넣습니다 (표가 맨 위·맨 아래일 때 유용) */
+function blockAround(where){
+  const ed = gi('cedit');
+  const b = currentBlock();
+  if(!b){ toast('기준이 될 표나 문단을 먼저 클릭해 주세요.','err'); return; }
+  const p = document.createElement('p');
+  p.innerHTML = '<br>';
+  if(where === 'before') ed.insertBefore(p, b);
+  else b.after(p);
+  // 새 줄에 커서를 놓습니다
+  const r = document.createRange();
+  r.setStart(p, 0); r.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(r);
+  lastRange = r.cloneRange();
+  p.scrollIntoView({block:'nearest'});
+  showInsertHint(); syncSrc();
+  toast(where === 'before' ? '표 위에 글줄을 넣었습니다.' : '표 아래에 글줄을 넣었습니다.','ok');
 }
 
 /* ═══════ 표 선 모양 (굵기·모양·색상·투명) ═══════ */
