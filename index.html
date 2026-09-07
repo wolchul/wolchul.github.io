@@ -598,9 +598,12 @@ a.wz-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
 
 /* 크기를 직접 지정한 사진은 그 크기를 지킵니다 (칸보다 크면 칸에 맞춤) */
 .wz-body img[data-px]{max-width:100%;height:auto}
+/* 크기를 통일한 사진 — 원본 비율이 달라도 같은 상자로 */
+.wz-body img[data-fit]{width:100%;height:auto;object-fit:cover;max-width:100%}
 @media(max-width:640px){
   /* 휴대폰에서는 화면 폭에 맞춥니다 */
   .wz-body img[data-px]{width:100% !important}
+  .wz-body img[data-fit]{width:100% !important}
 }
 
 /* 글이 든 표 칸 — 눌러서 그 부분만 듣기 */

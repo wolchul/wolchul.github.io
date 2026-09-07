@@ -248,6 +248,7 @@ input,select,textarea{font-family:inherit}
 #cedit img{max-width:100%;height:auto;border-radius:8px;margin:8px 0}
 /* 편집 중에는 사진 높이를 제한해 칸이 지나치게 늘어나지 않게 합니다 */
 #cedit .wg img{max-width:100%;height:auto;margin:4px auto;display:block}
+#cedit img[data-fit]{object-fit:cover}
 #csrc{display:none;width:100%;min-height:260px;padding:14px;font-size:.77rem;font-family:monospace;border:none;outline:none;resize:vertical;color:var(--text);background:var(--bg)}
 .fa{display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 
@@ -705,6 +706,8 @@ input,select,textarea{font-family:inherit}
                     <button onclick="imgSize('l')" type="button">크게</button>
                     <button onclick="imgSize('f')" type="button">꽉</button>
                     <button onclick="imgSizeDlg()" type="button" title="사진 크기를 숫자로 지정">📐 크기 입력</button>
+                    <button onclick="fitDlg()" type="button" title="여러 사진 크기를 똑같이 맞추기"
+                      style="border-color:var(--sky);color:var(--sky);font-weight:800">▭ 크기 통일</button>
                     <button onclick="imgAlign('left')" type="button" title="왼쪽 정렬">◧</button>
                     <button onclick="imgAlign('center')" type="button" title="가운데">▣</button>
                     <button onclick="imgAlign('right')" type="button" title="오른쪽">◨</button>
@@ -1069,6 +1072,35 @@ input,select,textarea{font-family:inherit}
       <button class="btn bp bsm" onclick="printSpForm()">🖨 신청서 출력</button>
       <button class="btn bd bsm" onclick="deleteSp()">삭제</button>
       <button class="btn bo bsm" onclick="closeSpDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 사진 크기 통일 -->
+<div class="conf" id="fitDlgBox">
+  <div class="conf-box" style="max-width:430px">
+    <h3>▭ 사진 크기 통일</h3>
+    <p style="margin-bottom:13px">
+      원본 비율이 달라도 <strong>모든 사진이 똑같은 크기</strong>로 보이게 맞춥니다.<br>
+      넘치는 부분은 잘라내고 가운데를 채웁니다.
+    </p>
+    <div class="sf" style="margin-bottom:12px">
+      <label>모양</label>
+      <div style="display:flex;gap:7px;flex-wrap:wrap" id="fitRatios"></div>
+    </div>
+    <div class="sf" style="margin-bottom:13px">
+      <label>적용 범위</label>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn bo bsm" onclick="fitScope='one';fitPrev()">선택한 사진만</button>
+        <button class="btn bo bsm" onclick="fitScope='table';fitPrev()">이 표 안의 모든 사진</button>
+        <button class="btn bo bsm" onclick="fitScope='all';fitPrev()">기사 전체 사진</button>
+      </div>
+      <p id="fitScopeTxt" style="font-size:.73rem;color:var(--sky);font-weight:700;margin-top:7px"></p>
+    </div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('fitDlgBox').classList.remove('open')">취소</button>
+      <button class="btn bd" onclick="fitApply('')">통일 해제</button>
+      <button class="btn bs" onclick="fitApply(fitRatio)">적용</button>
     </div>
   </div>
 </div>
@@ -2923,6 +2955,72 @@ document.addEventListener('scroll', e => {
   }
 }, true);
 window.addEventListener('resize', placeColBars);
+
+
+/* ═══════ 사진 크기 통일 ═══════
+   원본 비율이 달라도 같은 크기 상자에 맞춰 보이게 합니다. */
+const FIT_RATIOS = [['4/3','가로형 4:3'],['1/1','정사각 1:1'],
+                    ['3/2','가로형 3:2'],['16/9','와이드 16:9'],['3/4','세로형 3:4']];
+let fitRatio = '4/3', fitScope = 'table';
+
+function fitDlg(){
+  const imgs = fitTargets();
+  if(!imgs.length){ toast('사진이 있는 곳을 먼저 클릭해 주세요.','err'); return; }
+  gi('fitRatios').innerHTML = FIT_RATIOS.map(([v,n]) =>
+    `<button class="btn bo bsm" onclick="fitRatio='${v}';fitPrev()"
+      style="${v===fitRatio?'border-color:var(--sky);color:var(--sky);font-weight:800':''}">${n}</button>`
+  ).join('');
+  fitPrev();
+  gi('fitDlgBox').classList.add('open');
+}
+
+/* 적용 대상 사진들을 고릅니다 */
+function fitTargets(){
+  const ed = gi('cedit'); if(!ed) return [];
+  if(fitScope === 'one')  return selImg ? [selImg] : [];
+  if(fitScope === 'all')  return [...ed.querySelectorAll('img')];
+  const g = (selCell && selCell.closest('.wg')) || (selImg && selImg.closest('.wg'));
+  return g ? [...g.querySelectorAll('img')] : (selImg ? [selImg] : []);
+}
+
+function fitPrev(){
+  const n = fitTargets().length;
+  const name = { one:'선택한 사진만', table:'이 표 안의 모든 사진', all:'기사 전체 사진' }[fitScope];
+  const r = (FIT_RATIOS.find(x => x[0] === fitRatio) || ['','' ])[1];
+  const el = gi('fitScopeTxt');
+  if(el) el.textContent = `${name} · ${n}장 → ${r} 로 맞춥니다`;
+  gi('fitRatios').innerHTML = FIT_RATIOS.map(([v,nm]) =>
+    `<button class="btn bo bsm" onclick="fitRatio='${v}';fitPrev()"
+      style="${v===fitRatio?'border-color:var(--sky);color:var(--sky);font-weight:800':''}">${nm}</button>`
+  ).join('');
+}
+
+function fitApply(ratio){
+  const imgs = fitTargets();
+  if(!imgs.length){ toast('적용할 사진이 없습니다.','err'); return; }
+  imgs.forEach(im => {
+    if(ratio){
+      im.dataset.fit = ratio;
+      im.style.width = '100%';
+      im.style.height = 'auto';
+      im.style.aspectRatio = ratio;
+      im.style.objectFit = 'cover';
+      im.style.maxWidth = '100%';
+      delete im.dataset.px;
+      delete im.dataset.sz;
+    }else{
+      delete im.dataset.fit;
+      im.style.aspectRatio = '';
+      im.style.objectFit = '';
+      im.style.height = 'auto';
+    }
+  });
+  gi('fitDlgBox').classList.remove('open');
+  syncSrc();
+  if(rzTarget) placeHandles();
+  toast(ratio ? (imgs.length + '장을 같은 크기로 맞췄습니다.')
+              : (imgs.length + '장의 크기 통일을 해제했습니다.'), 'ok');
+}
 
 /* ═══════ 사진 크기 — 숫자 입력 ═══════ */
 function imgSizeDlg(){
