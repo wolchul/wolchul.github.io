@@ -619,6 +619,18 @@ a.wz-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
 }
 .wz-body .wg .wc.tts-able:active{background:var(--c-pale)}
 
+/* 앱 안 브라우저 안내 띠 */
+#inappBar{position:fixed;left:0;right:0;bottom:0;z-index:9997;
+  background:var(--c1);color:#fff;display:flex;align-items:center;gap:9px;
+  padding:11px 14px;font-size:calc(.8rem*var(--fs));font-weight:700;
+  box-shadow:0 -3px 14px rgba(0,0,0,.22)}
+#inappBar span{flex:1;line-height:1.45}
+#inappBar button{background:#fff;color:var(--c1);border:none;border-radius:18px;
+  padding:8px 14px;font-size:calc(.78rem*var(--fs));font-weight:800;
+  font-family:inherit;cursor:pointer;white-space:nowrap;flex-shrink:0}
+#inappBar button.x{background:transparent;color:rgba(255,255,255,.75);
+  padding:6px 4px;font-size:1rem}
+
 /* 지금 읽고 있는 항목 표시 */
 .tts-now{position:relative;background:#fffbe8 !important;
   outline:2px solid var(--acc);outline-offset:-2px;border-radius:6px;
@@ -1196,6 +1208,9 @@ window.addEventListener('load', () => {
 /* ── 렌더 ── */
 /* 기사 날짜에서 "2026-01" 형태의 월 키를 뽑아냅니다 */
 function monthKey(a){
+  // 관리자에서 정한 발행 호수가 있으면 그것을 씁니다 (없으면 작성 날짜 기준)
+  const iss = (a && a.issue) || '';
+  if(/^\d{4}-\d{2}$/.test(iss)) return iss;
   const d = (a && a.date) || '';
   return /^\d{4}-\d{2}/.test(d) ? d.slice(0,7) : '';
 }
@@ -1545,6 +1560,46 @@ function setTtsRate(v){
 
 /* 기사별 읽어주기 — 같은 기사를 다시 누르면 일시정지/재개 */
 let ttsArtId = null;
+/* ═══════ 카카오톡 등 앱 안 브라우저 대응 ═══════
+   카카오톡·인스타그램 안에서 열면 음성 읽기가 막혀 있습니다.
+   기기 기본 브라우저로 열면 정상 작동합니다. */
+function isInApp(){
+  const u = navigator.userAgent || '';
+  const KEYS = ['KAKAOTALK','INSTAGRAM','FB_IAB','FBAN','FBAV','NAVER(INAPP','LINE/','DAUMAPPS','KAKAOSTORY','EVERYTIMEAPP'];
+  const U = u.toUpperCase();
+  return KEYS.some(k => U.indexOf(k) !== -1);
+}
+
+/* 기기 기본 브라우저로 열기 */
+function openInBrowser(){
+  const url = location.href;
+  const u = navigator.userAgent || '';
+  if(/KAKAOTALK/i.test(u)){
+    location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+    return;
+  }
+  if(/Android/i.test(u)){
+    location.href = 'intent://' + url.replace('https://','').replace('http://','')
+      + '#Intent;scheme=https;package=com.android.chrome;end';
+    return;
+  }
+  copyLink();
+  showToast('주소를 복사했습니다. 사파리·크롬에 붙여넣어 열어 주세요.');
+}
+
+/* 앱 안에서 열렸으면 안내 띠를 보여줍니다 */
+function showInAppNotice(){
+  if(!isInApp() || document.getElementById('inappBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'inappBar';
+  bar.innerHTML = '<span>🔊 음성 읽어주기를 쓰시려면 기본 브라우저로 열어 주세요.</span>'
+    + '<button onclick="openInBrowser()">브라우저에서 열기</button>'
+    + '<button class="x" onclick="this.parentElement.remove()" aria-label="닫기">✕</button>';
+  document.body.appendChild(bar);
+}
+document.addEventListener('DOMContentLoaded', showInAppNotice);
+setTimeout(showInAppNotice, 800);
+
 /* ═══════ 항목 단위 읽어주기 ═══════
    표 칸이나 문단을 하나씩 끊어 읽고, 지금 읽는 곳을 표시합니다. */
 let ttsSecs = [], ttsSecIdx = -1;
@@ -1892,7 +1947,13 @@ function startWatch(){
     // 2초가 지나도 한 번도 시작되지 않았다면 지원하지 않는 브라우저입니다
     if(!ttsStarted && gap > 2500){
       stopTTS();
-      setTtsState('이 브라우저에서는 음성 읽기가 지원되지 않습니다.');
+      if(isInApp()){
+        setTtsState('카카오톡 안에서는 음성 읽기가 막혀 있습니다.');
+        showInAppNotice();
+        showToast('아래 「브라우저에서 열기」를 눌러 주세요.');
+      }else{
+        setTtsState('이 브라우저에서는 음성 읽기가 지원되지 않습니다.');
+      }
       return;
     }
     if(!ttsStarted) return;

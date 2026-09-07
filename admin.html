@@ -590,7 +590,7 @@ input,select,textarea{font-family:inherit}
             <div class="fg2"><label>이모지</label>
               <input type="text" id="eemo" placeholder="예: 🌿 ☀️"></div>
             <div class="fg2"><label>날짜</label>
-              <input type="date" id="edat"></div>
+              <input type="date" id="edat" onchange="issPrev()"></div>
           </div>
           <div class="fr">
             <div class="fg2"><label>작성자</label>
@@ -600,6 +600,16 @@ input,select,textarea{font-family:inherit}
                 <option value="false">일반 기사</option>
                 <option value="true">✨ 특집 기사</option>
               </select></div>
+          </div>
+          <div class="fr">
+            <div class="fg2"><label>📅 발행 호수 <small style="color:var(--text-s);font-weight:400">— 비워두면 작성 날짜의 달로 들어갑니다</small></label>
+              <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+                <input type="month" id="eiss" style="flex:0 0 170px" onchange="issPrev()">
+                <button type="button" class="btn bo bsm" onclick="gi('eiss').value='';issPrev()">날짜대로</button>
+                <span id="issPrevTxt" style="font-size:.76rem;font-weight:800;color:var(--sky)"></span>
+              </div>
+            </div>
+            <div class="fg2"></div>
           </div>
           <div class="fr">
             <div class="fg2"><label>📐 사진 배치</label>
@@ -2089,6 +2099,7 @@ function newArt(){
   gi('eemo').value='📝'; gi('edat').value=new Date().toISOString().split('T')[0];
   gi('eaut').value='기획홍보팀'; gi('efea').value='false';
   gi('elay').value='default'; gi('espan').value='full'; layPrev();
+  gi('eiss').value=''; issPrev();
   gi('esum').value=''; gi('cedit').innerHTML=''; gi('csrc').value='';
   gi('imgPrev').innerHTML=''; gi('imgUrl').value='';
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
@@ -2114,6 +2125,7 @@ function editArt(id){
   gi('edat').value=a.date||''; gi('eaut').value=a.author||'';
   gi('efea').value=a.featured?'true':'false'; gi('esum').value=a.summary||'';
   gi('elay').value=a.layout||'default'; gi('espan').value=a.span||'full'; layPrev();
+  gi('eiss').value=a.issue||''; issPrev();
   gi('cedit').innerHTML=a.content||''; gi('csrc').value=a.content||'';
   gi('imgPrev').innerHTML=''; gi('imgUrl').value='';
   srcMode=false; gi('cedit').style.display=''; gi('csrc').style.display='none';
@@ -2223,6 +2235,7 @@ async function saveArt(){
     title, cat:gi('ecat').value, emoji:gi('eemo').value||'📄',
     date:gi('edat').value, author:gi('eaut').value,
     featured:gi('efea').value==='true',
+    issue:(gi('eiss')?.value||'').trim(),
     layout:gi('elay')?.value||'default',
     span:gi('espan')?.value||'full',
     summary, content:cont, _new:isNew
@@ -4383,6 +4396,17 @@ function cleanHTML(h){
 function syncSrc(){
   const src = gi('csrc');
   if(src && src.style.display !== 'none') src.value = cleanHTML(gi('cedit').innerHTML);
+}
+
+/* 발행 호수 미리보기 */
+function issPrev(){
+  const el = gi('issPrevTxt'); if(!el) return;
+  const v = (gi('eiss')?.value || '').trim();
+  const d = (gi('edat')?.value || '').slice(0,7);
+  const use = v || d;
+  if(!use){ el.textContent = ''; return; }
+  const [y,m] = use.split('-');
+  el.textContent = `→ ${y}년 ${+m}월호` + (v ? ' (직접 지정)' : ' (작성 날짜 기준)');
 }
 
 /* ═══════ 기사 배치 미리보기 ═══════ */
