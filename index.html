@@ -20,7 +20,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, onSnapshot, doc, getDoc, orderBy, query }
+import { getFirestore, collection, getDocs, onSnapshot, doc, getDoc, setDoc,
+         increment, orderBy, query }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const FC = {
   apiKey:"AIzaSyC3bYjomrOrn2-GLuAK6iLZ-22i8i_McDo",
@@ -44,6 +45,34 @@ window.__loadSettings = async function(){
     const snap = await Promise.race([getDoc(doc(db,'settings','site')), timeout]);
     return snap.exists() ? snap.data() : null;
   }catch(e){ return null; }
+};
+
+/* ── 방문 기록 ──
+   같은 사람이 여러 번 새로고침해도 하루 한 번만 셉니다. */
+window.__countVisit = async function(){
+  try{
+    const now = new Date();
+    const p = n => String(n).padStart(2,'0');
+    const day = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}`;
+    const mon = day.slice(0,7);
+
+    // 오늘 이미 셌으면 넘어갑니다
+    let seen = null;
+    try{ seen = localStorage.getItem('wc_visit_day'); }catch(e){}
+    const isNew = (seen !== day);
+    try{ localStorage.setItem('wc_visit_day', day); }catch(e){}
+
+    const db = __fb();
+    const upd = { total: increment(1), lastAt: now.toISOString() };
+    if(isNew) upd.unique = increment(1);
+
+    // 일별
+    await setDoc(doc(db,'stats', day), Object.assign({ date: day, month: mon }, upd), { merge:true });
+    // 월별
+    await setDoc(doc(db,'stats_month', mon), Object.assign({ month: mon }, upd), { merge:true });
+    // 전체 누적
+    await setDoc(doc(db,'stats_total','all'), upd, { merge:true });
+  }catch(e){ /* 통계는 실패해도 화면에 영향 없게 */ }
 };
 
 /* 디자인 설정(settings/design) 불러오기 */
@@ -1172,6 +1201,7 @@ window.addEventListener('load', () => {
   render();
   applyIssueParam();
   applySettings();
+  setTimeout(() => { if(window.__countVisit) window.__countVisit(); }, 1200);
   try{ applyDesign(JSON.parse(localStorage.getItem('wc_design')||'null')); }catch{}
   applySettingsFromServer();   // 서버 설정으로 덮어쓰기
   applyDesignFromServer();     // 서버 디자인으로 덮어쓰기

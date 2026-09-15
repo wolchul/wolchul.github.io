@@ -520,6 +520,7 @@ input,select,textarea{font-family:inherit}
       </div>
       <div class="sb-s">
         <div class="sb-t">설정</div>
+        <button class="sb-b" onclick="go('pstats',this)">📈 방문자 통계</button>
         <button class="sb-b" onclick="go('pdesign',this)">🎨 디자인 꾸미기</button>
         <button class="sb-b" onclick="go('pset',this)">⚙️ 사이트 설정</button>
         <button class="sb-b" onclick="go('ppw',this)">🔒 비밀번호 변경</button>
@@ -882,6 +883,54 @@ input,select,textarea{font-family:inherit}
         </div>
         <div id="phStatus" style="font-size:.76rem;color:var(--text-s);margin:6px 0 10px"></div>
         <div id="phGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px"></div>
+      </div>
+
+      <!-- 방문자 통계 -->
+      <div class="pn" id="pstats">
+        <div class="pt">📈 방문자 통계</div>
+
+        <div class="dg" style="margin-bottom:18px">
+          <div class="dc"><div class="dn" id="stToday">-</div><div class="dl">오늘 방문</div></div>
+          <div class="dc"><div class="dn" id="stMonth">-</div><div class="dl">이번 달</div></div>
+          <div class="dc"><div class="dn" id="stTotal">-</div><div class="dl">전체 누적</div></div>
+          <div class="dc"><div class="dn" id="stAvg">-</div><div class="dl">하루 평균 (최근 30일)</div></div>
+        </div>
+
+        <div class="sc" style="margin-bottom:16px">
+          <h3>📅 최근 30일</h3>
+          <div id="stChart" style="display:flex;align-items:flex-end;gap:3px;height:150px;
+            padding:10px 4px 0;overflow-x:auto"></div>
+          <p style="font-size:.72rem;color:var(--text-s);margin-top:8px">
+            막대에 마우스를 올리면 날짜와 방문 수가 보입니다.
+          </p>
+        </div>
+
+        <div class="sg">
+          <div class="sc">
+            <h3>📆 월별 통계</h3>
+            <table class="tbl" style="margin:0">
+              <thead><tr><th>월</th><th>방문</th><th>순 방문자</th></tr></thead>
+              <tbody id="stMonthTbl"><tr><td colspan="3">불러오는 중...</td></tr></tbody>
+            </table>
+          </div>
+          <div class="sc">
+            <h3>🗓 일별 기록 (최근 14일)</h3>
+            <table class="tbl" style="margin:0">
+              <thead><tr><th>날짜</th><th>방문</th><th>순 방문자</th></tr></thead>
+              <tbody id="stDayTbl"><tr><td colspan="3">불러오는 중...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn bo" onclick="loadStats()">🔄 새로고침</button>
+          <button class="btn bo" onclick="exportStats()">📊 엑셀로 내보내기</button>
+        </div>
+        <div style="background:var(--sky-l);border-radius:8px;padding:11px 14px;margin-top:12px;
+          font-size:.74rem;color:var(--navy);line-height:1.7">
+          💡 <strong>방문</strong>은 페이지를 연 횟수, <strong>순 방문자</strong>는 하루에 한 번만 세는 숫자입니다.
+          같은 분이 여러 번 새로고침해도 순 방문자는 1로 셉니다.
+        </div>
       </div>
 
       <!-- 디자인 -->
@@ -1752,6 +1801,7 @@ function go(id,btn){
   if(id==='pdash'){ rDash(); updateFbs(); }
   if(id==='pset'){ loadSetForm(); loadUpCfg(); }
   if(id==='pdesign') loadDesign();
+  if(id==='pstats') loadStats();
   if(id==='psponsor') rSpTbl();
 }
 
@@ -4938,6 +4988,106 @@ function chooseSideImg(path){
   const e = gi('ssideImg'); if(e) e.value = path;
   sideImgPrev();
   toast('선택되었습니다. 저장을 눌러주세요.','ok');
+}
+
+
+/* ═══════ 방문자 통계 ═══════ */
+let STATS_DAYS = [], STATS_MONS = [];
+
+async function loadStats(){
+  if(!(window.__db && window.__fs && fbOK)){
+    toast('서버에 연결되지 않았습니다.','err'); return;
+  }
+  const { collection, getDocs, doc, getDoc } = window.__fs;
+  try{
+    const [dSnap, mSnap, tSnap] = await Promise.all([
+      getDocs(collection(window.__db,'stats')),
+      getDocs(collection(window.__db,'stats_month')),
+      getDoc(doc(window.__db,'stats_total','all'))
+    ]);
+    STATS_DAYS = []; dSnap.forEach(d => STATS_DAYS.push({ id:d.id, ...d.data() }));
+    STATS_MONS = []; mSnap.forEach(d => STATS_MONS.push({ id:d.id, ...d.data() }));
+    STATS_DAYS.sort((a,b) => a.id.localeCompare(b.id));
+    STATS_MONS.sort((a,b) => b.id.localeCompare(a.id));
+
+    const p = n => String(n).padStart(2,'0');
+    const now = new Date();
+    const today = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}`;
+    const mon = today.slice(0,7);
+
+    const td = STATS_DAYS.find(x => x.id === today);
+    const tm = STATS_MONS.find(x => x.id === mon);
+    const tt = tSnap.exists() ? tSnap.data() : {};
+
+    const num = v => (v == null ? 0 : v).toLocaleString();
+    gi('stToday').textContent = num(td && td.total);
+    gi('stMonth').textContent = num(tm && tm.total);
+    gi('stTotal').textContent = num(tt.total);
+
+    const last30 = STATS_DAYS.slice(-30);
+    const sum = last30.reduce((a,x) => a + (x.total||0), 0);
+    gi('stAvg').textContent = last30.length ? Math.round(sum/last30.length).toLocaleString() : '0';
+
+    drawStChart(last30);
+    drawStTables();
+  }catch(e){
+    console.error(e);
+    if(e.code === 'permission-denied'){
+      toast('❌ 통계를 읽을 권한이 없습니다. Firestore 규칙에 stats 항목을 추가해 주세요.','err');
+    }else toast('통계를 불러오지 못했습니다: '+(e.code||e.message),'err');
+  }
+}
+
+function drawStChart(days){
+  const box = gi('stChart'); if(!box) return;
+  if(!days.length){ box.innerHTML = '<div style="color:var(--text-s);font-size:.8rem">기록이 없습니다.</div>'; return; }
+  const max = Math.max(...days.map(d => d.total||0), 1);
+  box.innerHTML = days.map(d => {
+    const v = d.total || 0;
+    const h = Math.max(3, Math.round(v / max * 120));
+    const md = d.id.slice(5).replace('-','/');
+    return `<div title="${d.id} · ${v}회 (순 ${d.unique||0}명)"
+      style="flex:1;min-width:14px;display:flex;flex-direction:column;
+      align-items:center;justify-content:flex-end;gap:3px">
+      <span style="font-size:.6rem;color:var(--text-s)">${v||''}</span>
+      <div style="width:100%;height:${h}px;background:linear-gradient(180deg,var(--sky),var(--navy));
+        border-radius:3px 3px 0 0"></div>
+      <span style="font-size:.56rem;color:var(--text-s);white-space:nowrap">${md}</span>
+    </div>`;
+  }).join('');
+}
+
+function drawStTables(){
+  const mt = gi('stMonthTbl');
+  if(mt){
+    mt.innerHTML = STATS_MONS.length ? STATS_MONS.slice(0,12).map(m => {
+      const [y,mm] = m.id.split('-');
+      return `<tr><td>${y}년 ${+mm}월</td>
+        <td><strong>${(m.total||0).toLocaleString()}</strong></td>
+        <td>${(m.unique||0).toLocaleString()}</td></tr>`;
+    }).join('') : '<tr><td colspan="3">기록이 없습니다.</td></tr>';
+  }
+  const dt = gi('stDayTbl');
+  if(dt){
+    const last = STATS_DAYS.slice(-14).reverse();
+    dt.innerHTML = last.length ? last.map(d =>
+      `<tr><td>${d.id.replace(/-/g,'.')}</td>
+       <td><strong>${(d.total||0).toLocaleString()}</strong></td>
+       <td>${(d.unique||0).toLocaleString()}</td></tr>`).join('')
+      : '<tr><td colspan="3">기록이 없습니다.</td></tr>';
+  }
+}
+
+function exportStats(){
+  if(!STATS_DAYS.length){ toast('내보낼 기록이 없습니다.','err'); return; }
+  const rows = [['날짜','방문','순 방문자']].concat(
+    STATS_DAYS.map(d => [d.id, d.total||0, d.unique||0]));
+  const csv = '\ufeff' + rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  a.download = '월출어람_방문통계_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  toast('엑셀 파일로 내려받았습니다.','ok');
 }
 
 /* ═══════ 디자인 꾸미기 ═══════ */
