@@ -48,29 +48,53 @@ window.__loadSettings = async function(){
 };
 
 /* ── 방문 기록 ──
-   같은 사람이 여러 번 새로고침해도 하루 한 번만 셉니다. */
+   Cloudflare 서버에서 받은 방문자 번호로 같은 사람을 가려냅니다.
+   번호는 IP 를 되돌릴 수 없게 바꾼 값이며, IP 자체는 어디에도 저장하지 않습니다. */
 window.__countVisit = async function(){
   try{
     const now = new Date();
     const p = n => String(n).padStart(2,'0');
     const day = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}`;
     const mon = day.slice(0,7);
-
-    // 오늘 이미 셌으면 넘어갑니다
-    let seen = null;
-    try{ seen = localStorage.getItem('wc_visit_day'); }catch(e){}
-    const isNew = (seen !== day);
-    try{ localStorage.setItem('wc_visit_day', day); }catch(e){}
-
     const db = __fb();
-    const upd = { total: increment(1), lastAt: now.toISOString() };
-    if(isNew) upd.unique = increment(1);
 
-    // 일별
+    // ① 방문자 번호 받아오기
+    let vid = null;
+    const UP = (function(){ try{ return localStorage.getItem('wc_up_url'); }catch(e){ return null; } })()
+            || 'https://wolchul-upload.yasg2025.workers.dev';
+    try{
+      const r = await fetch(UP, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'visitorId' })
+      });
+      const o = await r.json();
+      if(o && o.id) vid = o.id;
+    }catch(e){ /* 서버가 없으면 아래 방식으로 */ }
+
+    // ② 오늘 처음 온 사람인지 확인
+    let isNew = true;
+    if(vid){
+      // 서버 번호가 있으면 그것으로 판단합니다 (새로고침·시크릿창 모두 걸러집니다)
+      try{
+        const ref = doc(db,'visitors', vid);
+        const snap = await getDoc(ref);
+        isNew = !snap.exists();
+        if(isNew) await setDoc(ref, { at: now.toISOString(), day });
+      }catch(e){ isNew = false; }
+    }else{
+      // 서버를 못 쓰면 이 브라우저 기준으로만 판단합니다
+      let seen = null;
+      try{ seen = localStorage.getItem('wc_visit_day'); }catch(e){}
+      isNew = (seen !== day);
+      try{ localStorage.setItem('wc_visit_day', day); }catch(e){}
+    }
+
+    // ③ 기록 — 방문 수는 하루 한 번만 올립니다
+    if(!isNew) return;
+    const upd = { total: increment(1), unique: increment(1), lastAt: now.toISOString() };
     await setDoc(doc(db,'stats', day), Object.assign({ date: day, month: mon }, upd), { merge:true });
-    // 월별
     await setDoc(doc(db,'stats_month', mon), Object.assign({ month: mon }, upd), { merge:true });
-    // 전체 누적
     await setDoc(doc(db,'stats_total','all'), upd, { merge:true });
   }catch(e){ /* 통계는 실패해도 화면에 영향 없게 */ }
 };

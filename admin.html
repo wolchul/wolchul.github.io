@@ -890,7 +890,7 @@ input,select,textarea{font-family:inherit}
         <div class="pt">📈 방문자 통계</div>
 
         <div class="dg" style="margin-bottom:18px">
-          <div class="dc"><div class="dn" id="stToday">-</div><div class="dl">오늘 방문</div></div>
+          <div class="dc"><div class="dn" id="stToday">-</div><div class="dl">오늘 방문자</div></div>
           <div class="dc"><div class="dn" id="stMonth">-</div><div class="dl">이번 달</div></div>
           <div class="dc"><div class="dn" id="stTotal">-</div><div class="dl">전체 누적</div></div>
           <div class="dc"><div class="dn" id="stAvg">-</div><div class="dl">하루 평균 (최근 30일)</div></div>
@@ -909,15 +909,15 @@ input,select,textarea{font-family:inherit}
           <div class="sc">
             <h3>📆 월별 통계</h3>
             <table class="tbl" style="margin:0">
-              <thead><tr><th>월</th><th>방문</th><th>순 방문자</th></tr></thead>
-              <tbody id="stMonthTbl"><tr><td colspan="3">불러오는 중...</td></tr></tbody>
+              <thead><tr><th>월</th><th>방문자 수</th></tr></thead>
+              <tbody id="stMonthTbl"><tr><td colspan="2">불러오는 중...</td></tr></tbody>
             </table>
           </div>
           <div class="sc">
             <h3>🗓 일별 기록 (최근 14일)</h3>
             <table class="tbl" style="margin:0">
-              <thead><tr><th>날짜</th><th>방문</th><th>순 방문자</th></tr></thead>
-              <tbody id="stDayTbl"><tr><td colspan="3">불러오는 중...</td></tr></tbody>
+              <thead><tr><th>날짜</th><th>방문자 수</th></tr></thead>
+              <tbody id="stDayTbl"><tr><td colspan="2">불러오는 중...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -928,8 +928,9 @@ input,select,textarea{font-family:inherit}
         </div>
         <div style="background:var(--sky-l);border-radius:8px;padding:11px 14px;margin-top:12px;
           font-size:.74rem;color:var(--navy);line-height:1.7">
-          💡 <strong>방문</strong>은 페이지를 연 횟수, <strong>순 방문자</strong>는 하루에 한 번만 세는 숫자입니다.
-          같은 분이 여러 번 새로고침해도 순 방문자는 1로 셉니다.
+          💡 접속한 곳(IP)을 기준으로 <strong>하루에 한 번만</strong> 셉니다.
+          같은 분이 새로고침을 여러 번 하거나 시크릿 창으로 다시 들어와도 1회로 기록됩니다.<br>
+          IP 자체는 저장하지 않고, 되돌릴 수 없는 형태로 바꾼 번호만 씁니다.
         </div>
       </div>
 
@@ -5046,7 +5047,7 @@ function drawStChart(days){
     const v = d.total || 0;
     const h = Math.max(3, Math.round(v / max * 120));
     const md = d.id.slice(5).replace('-','/');
-    return `<div title="${d.id} · ${v}회 (순 ${d.unique||0}명)"
+    return `<div title="${d.id} · ${v}명"
       style="flex:1;min-width:14px;display:flex;flex-direction:column;
       align-items:center;justify-content:flex-end;gap:3px">
       <span style="font-size:.6rem;color:var(--text-s)">${v||''}</span>
@@ -5063,25 +5064,23 @@ function drawStTables(){
     mt.innerHTML = STATS_MONS.length ? STATS_MONS.slice(0,12).map(m => {
       const [y,mm] = m.id.split('-');
       return `<tr><td>${y}년 ${+mm}월</td>
-        <td><strong>${(m.total||0).toLocaleString()}</strong></td>
-        <td>${(m.unique||0).toLocaleString()}</td></tr>`;
-    }).join('') : '<tr><td colspan="3">기록이 없습니다.</td></tr>';
+        <td><strong>${(m.total||0).toLocaleString()}</strong></td></tr>`;
+    }).join('') : '<tr><td colspan="2">기록이 없습니다.</td></tr>';
   }
   const dt = gi('stDayTbl');
   if(dt){
     const last = STATS_DAYS.slice(-14).reverse();
     dt.innerHTML = last.length ? last.map(d =>
       `<tr><td>${d.id.replace(/-/g,'.')}</td>
-       <td><strong>${(d.total||0).toLocaleString()}</strong></td>
-       <td>${(d.unique||0).toLocaleString()}</td></tr>`).join('')
-      : '<tr><td colspan="3">기록이 없습니다.</td></tr>';
+       <td><strong>${(d.total||0).toLocaleString()}</strong></td></tr>`).join('')
+      : '<tr><td colspan="2">기록이 없습니다.</td></tr>';
   }
 }
 
 function exportStats(){
   if(!STATS_DAYS.length){ toast('내보낼 기록이 없습니다.','err'); return; }
-  const rows = [['날짜','방문','순 방문자']].concat(
-    STATS_DAYS.map(d => [d.id, d.total||0, d.unique||0]));
+  const rows = [['날짜','방문자 수']].concat(
+    STATS_DAYS.map(d => [d.id, d.total||0]));
   const csv = '\ufeff' + rows.map(r => r.join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
