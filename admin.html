@@ -2966,7 +2966,12 @@ function showColBars(g){
   hideColBars();
   if(!g) return;
   cgGrid = g;
-  const cols = parseInt(g.dataset.cols) || 1;
+  let cols = parseInt(g.dataset.cols) || 1;
+  if(g.dataset.fine === '1' && selCell && selCell.closest('.wg') === g){
+    const info = cellRowInfo(selCell);
+    const row = (info && info.row != null) ? info.rows[info.row] : null;
+    cols = row ? row.length : cols;          // 그 줄의 칸 수만큼 손잡이
+  }
   if(cols < 2) return;
 
   const bar = document.createElement('div');
@@ -2992,8 +2997,24 @@ function showColBars(g){
         const fr = base.slice();
         fr[i-1] = Math.max(0.3, base[i-1] + d);
         fr[i]   = Math.max(0.3, base[i]   - d);
-        g.style.gridTemplateColumns = fr.map(v => v.toFixed(2) + 'fr').join(' ');
-        g.dataset.fr = fr.map(v => v.toFixed(2)).join(',');
+        if(g.dataset.fine === '1'){
+          // 줄마다 너비를 따로 쓰는 표 — 선택한 줄만 바꿉니다
+          const info = selCell ? cellRowInfo(selCell) : null;
+          const row = (info && info.row != null) ? info.rows[info.row] : null;
+          if(row && row.length >= 2){
+            const j = Math.min(i, row.length - 1);
+            const sp = row.map(c => parseInt(c.dataset.span) || 1);
+            const tot = sp.reduce((a,b)=>a+b, 0);
+            const move2 = Math.round(dx / rect.width * tot);
+            const a1 = Math.max(3, sp[j-1] + move2);
+            const b1 = Math.max(3, sp[j-1] + sp[j] - a1);
+            row[j-1].dataset.span = a1; row[j-1].style.gridColumn = 'span ' + a1;
+            row[j].dataset.span   = b1; row[j].style.gridColumn   = 'span ' + b1;
+          }
+        }else{
+          g.style.gridTemplateColumns = fr.map(v => v.toFixed(2) + 'fr').join(' ');
+          g.dataset.fr = fr.map(v => v.toFixed(2)).join(',');
+        }
         placeColBars();
         // 양쪽 칸이 몇 픽셀인지 보여줍니다
         const tot = fr.reduce((a,b)=>a+b, 0);
@@ -3017,6 +3038,12 @@ function showColBars(g){
 }
 
 function curFrs(g, cols){
+  // 줄마다 너비가 다른 표는 지금 고른 줄의 비율을 보여줍니다
+  if(g.dataset.fine === '1' && selCell && selCell.closest('.wg') === g){
+    const info = cellRowInfo(selCell);
+    const row = (info && info.row != null) ? info.rows[info.row] : null;
+    if(row && row.length) return row.map(c => parseInt(c.dataset.span) || 1);
+  }
   if(g.dataset.fr){
     const a = g.dataset.fr.split(',').map(Number);
     if(a.length === cols && a.every(v => v > 0)) return a;
@@ -3047,7 +3074,12 @@ function placeColBars(){
     cgBar.style.top = (top + window.scrollY) + 'px';
     cgBar.style.width = r.width + 'px';
     cgBar.style.height = h + 'px';
-    const cols0 = parseInt(cgGrid.dataset.cols) || 1;
+    let cols0 = parseInt(cgGrid.dataset.cols) || 1;
+    if(cgGrid.dataset.fine === '1' && selCell && selCell.closest('.wg') === cgGrid){
+      const inf = cellRowInfo(selCell);
+      const rw = (inf && inf.row != null) ? inf.rows[inf.row] : null;
+      if(rw) cols0 = rw.length;
+    }
     const fr0 = curFrs(cgGrid, cols0);
     const tot0 = fr0.reduce((a,b)=>a+b, 0);
     let acc0 = 0;
@@ -4304,15 +4336,54 @@ function ensureFineGrid(g){
   if(!g || g.dataset.fine === '1') return g;
   const cols = parseInt(g.dataset.cols) || 1;
   if(FINE % cols !== 0) return g;             // 나눌 수 없으면 그대로
-  const mul = FINE / cols;
-  g.querySelectorAll(':scope > .wc').forEach(c => {
-    const sp = (parseInt(c.dataset.span) || 1) * mul;
-    c.dataset.span = sp;
-    c.style.gridColumn = 'span ' + sp;
-  });
+
+  // 표 전체에 걸려 있던 너비 비율(data-fr)을 각 줄에 그대로 옮겨 심습니다.
+  // 이렇게 해야 전환 뒤에도 지금 보이는 너비가 유지됩니다.
+  let frs = null;
+  if(g.dataset.fr){
+    const a = g.dataset.fr.split(',').map(Number);
+    if(a.length === cols && a.every(v => v > 0)) frs = a;
+  }
+
+  const info = cellRowInfo(g.querySelector(':scope > .wc'));
+  const rows = info ? info.rows : null;
+
+  if(rows){
+    rows.forEach(row => {
+      // 이 줄이 원래 차지하던 칸 수 기준으로 60칸을 나눕니다
+      const total = row.reduce((a,c) => a + (parseInt(c.dataset.span) || 1), 0) || cols;
+      let used = 0, at = 0;
+      row.forEach((c, i) => {
+        const sp0 = parseInt(c.dataset.span) || 1;
+        // 표 전체 비율이 있으면 그 비율을, 없으면 균등하게
+        let weight = sp0;
+        if(frs){
+          weight = 0;
+          for(let k = 0; k < sp0; k++) weight += (frs[(at + k) % cols] || 1);
+        }
+        at += sp0;
+        const share = (i === row.length - 1)
+          ? (FINE - used)
+          : Math.max(1, Math.round(weight / (frs
+              ? frs.reduce((x,y)=>x+y,0)
+              : total) * FINE));
+        used += share;
+        c.dataset.span = share;
+        c.style.gridColumn = 'span ' + share;
+      });
+    });
+  }else{
+    const mul = FINE / cols;
+    g.querySelectorAll(':scope > .wc').forEach(c => {
+      const sp = (parseInt(c.dataset.span) || 1) * mul;
+      c.dataset.span = sp;
+      c.style.gridColumn = 'span ' + sp;
+    });
+  }
+
   g.dataset.cols = FINE;
   g.dataset.fine = '1';
-  delete g.dataset.fr;
+  delete g.dataset.fr;                        // 이제 줄마다 따로 관리합니다
   g.style.gridTemplateColumns = `repeat(${FINE},minmax(0,1fr))`;
   return g;
 }
