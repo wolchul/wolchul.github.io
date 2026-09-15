@@ -791,6 +791,8 @@ input,select,textarea{font-family:inherit}
           </div>
           <div class="fa">
             <button class="btn bs" onclick="saveArt()" type="button">💾 저장하기</button>
+            <button class="btn bp" onclick="saveAsNew()" type="button"
+              title="지금 내용을 새 기사로 따로 저장합니다 (원래 기사는 그대로)">📋 새 기사로 저장</button>
             <button class="btn bo" onclick="go('plist',null)" type="button">취소</button>
             <button class="btn bo" onclick="prevArt()" type="button" style="margin-left:auto">👁 미리보기</button>
           </div>
@@ -1682,6 +1684,7 @@ function rTbl(){
       <td style="font-size:.72rem;color:var(--text-s)">${(a.date||'').replace(/-/g,'.')}</td>
       <td><div class="acts">
         <button class="btn bo bsm" onclick="editArt('${a.id}')">✏️ 수정</button>
+        <button class="btn bp bsm" onclick="copyArt('${a.id}')" title="이 기사를 복사해 새 기사로 만듭니다">📋 복사</button>
         <button class="btn bd bsm" onclick="askDel('${a.id}','${a.title.replace(/'/g,"\\'")}','art')">삭제</button>
       </div></td>
     </tr>`).join('');
@@ -2112,6 +2115,63 @@ function newArt(){
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
   }, 100);
 }
+/* 지금 편집 중인 내용을 새 기사로 저장 (원래 기사는 그대로 둡니다) */
+function saveAsNew(){
+  const cur = gi('eid').value;
+  if(!cur){
+    toast('이미 새 기사입니다. 그냥 저장하시면 됩니다.','err');
+    return;
+  }
+  if(!confirm('지금 내용을 새 기사로 따로 저장할까요?\n원래 기사는 그대로 남습니다.')) return;
+  gi('eid').value = '';                       // 번호를 비워 새 기사로
+  gi('etl').textContent = '📋 새 기사로 저장';
+  saveArt();
+}
+
+/* ═══════ 기사 복사 ═══════
+   기존 기사를 그대로 가져와 새 기사로 만듭니다.
+   매달 비슷한 구성으로 만드실 때 틀을 재활용할 수 있습니다. */
+function copyArt(id){
+  const a = ARTS.find(x => x.id == id || x.id === id || x._firebaseId === id);
+  if(!a){ toast('기사를 찾을 수 없습니다.','err'); return; }
+
+  const today = new Date().toISOString().split('T')[0];
+  gi('etl').textContent = '📋 복사한 기사 (새 기사로 저장됩니다)';
+  gi('eid').value = '';                       // 새 기사이므로 번호를 비웁니다
+  gi('etti').value = (a.title || '') + ' (복사본)';
+
+  let ec = dispCat(a.cat || '');
+  if(!['발자취','함께한 이야기','공모사업','후원봉사','소식'].includes(ec)) ec = '소식';
+  gi('ecat').value = ec;
+  gi('eemo').value = a.emoji || '📄';
+  gi('edat').value = today;                   // 날짜는 오늘로
+  gi('eaut').value = a.author || '기획홍보팀';
+  gi('efea').value = 'false';                 // 특집은 해제
+  gi('esum').value = a.summary || '';
+  gi('elay').value = a.layout || 'default';
+  gi('espan').value = a.span || 'full';
+  gi('eiss').value = '';                      // 호수는 비워 새로 정하게
+  layPrev(); issPrev();
+
+  gi('cedit').innerHTML = a.content || '';
+  gi('csrc').value = a.content || '';
+  gi('imgPrev').innerHTML = ''; gi('imgUrl').value = '';
+  srcMode = false;
+  gi('cedit').style.display = ''; gi('csrc').style.display = 'none';
+
+  go('peditor', null);
+  selCell = null; selImg = null; lastRange = null;
+  setTimeout(() => {
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode();
+    bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); showInsertHint();
+    fixImgSrcs(); repairGrids();
+    gi('etti').focus();
+    gi('etti').select();
+  }, 100);
+
+  toast('복사했습니다. 제목과 날짜를 고친 뒤 저장하세요.','ok');
+}
+
 function editArt(id){
   const a=ARTS.find(x=>x.id==id||x.id===id||x._firebaseId===id); if(!a)return;
   const useId = a._firebaseId || a.id;
