@@ -749,7 +749,10 @@ input,select,textarea{font-family:inherit}
                     <button onclick="bgPick('cell')" type="button" title="선택한 칸 배경색">🎨 칸 배경</button>
                     <button onclick="bgPick('grid')" type="button" title="표 전체 배경색">🎨 표 배경</button>
                     <button onclick="lineDlg()" type="button" title="표 선 모양·굵기·색상">┼ 선 모양</button>
-                    <button onclick="cellPad()" type="button" title="칸 여백 넓히기/좁히기">↕ 여백</button>
+                    <button onclick="padDlg()" type="button" title="칸·줄 여백 조절">↕ 여백</button>
+                    <button onclick="rowHeightDlg()" type="button" title="이 줄의 높이만 조절">↥ 줄 높이</button>
+                    <button onclick="rowWidthDlg()" type="button" title="이 줄의 칸 너비만 조절">↔ 줄 너비</button>
+                    <button onclick="equalizeCells()" type="button" title="고른 칸들의 너비를 똑같이">⇄ 너비 균등</button>
                     <button onclick="setVAlign('top')" type="button" title="칸 안에서 위쪽에 붙이기">⇧ 위</button>
                     <button onclick="setVAlign('middle')" type="button" title="칸 안에서 가운데">⇕ 중간</button>
                     <button onclick="setVAlign('bottom')" type="button" title="칸 안에서 아래쪽에 붙이기">⇩ 아래</button>
@@ -1299,6 +1302,90 @@ input,select,textarea{font-family:inherit}
 
     <div class="ca">
       <button class="btn bo" onclick="gi('phModal').classList.remove('open')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 줄 너비 -->
+<div class="conf" id="rowWDlgBox">
+  <div class="conf-box" style="max-width:520px">
+    <h3>↔ 줄 너비</h3>
+    <p style="margin-bottom:12px">
+      <strong>선택한 칸이 있는 줄</strong>의 칸 너비만 바꿉니다. 다른 줄은 그대로입니다.<br>
+      숫자는 비율이며 합이 100이 되도록 자동으로 맞춰집니다.
+    </p>
+    <div id="rowWRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <button class="btn bo bsm" onclick="rowWEqual()">⇄ 모두 균등</button>
+      <button class="btn bo bsm" onclick="rowWPreset([30,70])">30 : 70</button>
+      <button class="btn bo bsm" onclick="rowWPreset([25,75])">25 : 75</button>
+      <button class="btn bo bsm" onclick="rowWPreset([40,60])">40 : 60</button>
+    </div>
+    <div id="rowWBar" style="display:flex;height:26px;border-radius:6px;overflow:hidden;
+      border:1px solid var(--border);margin-bottom:4px"></div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('rowWDlgBox').classList.remove('open')">취소</button>
+      <button class="btn bs" onclick="rowWApply()">적용</button>
+    </div>
+  </div>
+</div>
+
+<!-- 여백 조절 -->
+<div class="conf" id="padDlgBox">
+  <div class="conf-box" style="max-width:420px">
+    <h3>↕ 여백 조절</h3>
+    <p style="margin-bottom:12px">어디에 적용할지 골라 주세요.</p>
+    <div class="sf" style="margin-bottom:12px">
+      <label>적용 범위</label>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn bo bsm" onclick="padScope='cell';padPrev()">선택한 칸만</button>
+        <button class="btn bo bsm" onclick="padScope='row';padPrev()">이 줄 전체</button>
+        <button class="btn bo bsm" onclick="padScope='table';padPrev()">표 전체</button>
+      </div>
+      <p id="padScopeTxt" style="font-size:.73rem;color:var(--sky);font-weight:700;margin-top:7px"></p>
+    </div>
+    <div class="sf" style="margin-bottom:6px">
+      <label>여백 <span id="padVal" style="color:var(--sky);font-weight:800">16px</span></label>
+      <input type="range" id="padRange" min="0" max="48" value="16" step="2"
+        oninput="padPrev()" style="width:100%">
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn bo bsm" onclick="setPad(4)">좁게</button>
+        <button class="btn bo bsm" onclick="setPad(10)">기본</button>
+        <button class="btn bo bsm" onclick="setPad(20)">넓게</button>
+        <button class="btn bo bsm" onclick="setPad(32)">아주 넓게</button>
+      </div>
+    </div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('padDlgBox').classList.remove('open')">취소</button>
+      <button class="btn bs" onclick="padApply()">적용</button>
+    </div>
+  </div>
+</div>
+
+<!-- 줄 높이 -->
+<div class="conf" id="rowHDlgBox">
+  <div class="conf-box" style="max-width:420px">
+    <h3>↥ 줄 높이</h3>
+    <p style="margin-bottom:12px">
+      <strong>선택한 칸이 있는 줄</strong>의 높이만 바꿉니다. 다른 줄은 그대로입니다.
+    </p>
+    <div class="sf" style="margin-bottom:6px">
+      <label>최소 높이 <span id="rowHVal" style="color:var(--sky);font-weight:800">자동</span></label>
+      <input type="range" id="rowHRange" min="0" max="500" value="0" step="10"
+        oninput="rowHPrev()" style="width:100%">
+      <p style="font-size:.72rem;color:var(--text-s);margin-top:6px">
+        0으로 두면 내용에 맞춰 자동으로 정해집니다.
+      </p>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn bo bsm" onclick="setRowH(0)">자동</button>
+        <button class="btn bo bsm" onclick="setRowH(120)">120px</button>
+        <button class="btn bo bsm" onclick="setRowH(200)">200px</button>
+        <button class="btn bo bsm" onclick="setRowH(300)">300px</button>
+      </div>
+    </div>
+    <div class="ca">
+      <button class="btn bo" onclick="gi('rowHDlgBox').classList.remove('open')">취소</button>
+      <button class="btn bs" onclick="rowHApply()">적용</button>
     </div>
   </div>
 </div>
@@ -2706,21 +2793,41 @@ function shrinkImageLegacy(file){
 }
 
 /* 한 장 올리기 */
-async function uploadOne(file, folder){
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function uploadOne(file, folder, tries){
+  tries = tries || 0;
   const { base64, ext } = await shrinkImage(file);
-  const res = await fetch(UP_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      key: UP_KEY,
-      folder: folder || 'images/vol3',
-      filename: (file.name || 'photo') + '.' + ext,
-      dataBase64: base64
-    })
-  });
-  const out = await res.json().catch(() => ({}));
-  if(!res.ok || !out.ok) throw new Error(out.error || ('업로드 실패 (' + res.status + ')'));
-  return out.path;
+  let res, out = {};
+  try{
+    res = await fetch(UP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: UP_KEY,
+        folder: folder || 'images/vol3',
+        filename: (file.name || 'photo') + '.' + ext,
+        dataBase64: base64
+      })
+    });
+    out = await res.json().catch(() => ({}));
+  }catch(e){
+    // 네트워크 오류도 재시도 대상
+    if(tries < 4){ await sleep(900 * (tries + 1)); return uploadOne(file, folder, tries + 1); }
+    throw new Error('네트워크 오류: ' + e.message);
+  }
+
+  if(res.ok && out.ok) return out.path;
+
+  // GitHub 은 같은 저장소에 동시에 쓰면 충돌합니다 — 잠시 뒤 다시 시도
+  const retryable = res.status === 409 || res.status === 422 || res.status === 502
+    || res.status === 429 || res.status >= 500
+    || /conflict|too fast|sha|rate limit/i.test(out.detail || out.error || '');
+  if(retryable && tries < 4){
+    await sleep(900 * (tries + 1));      // 0.9초 → 1.8초 → 2.7초 → 3.6초
+    return uploadOne(file, folder, tries + 1);
+  }
+  throw new Error(out.error || ('업로드 실패 (' + (res.status || '?') + ')'));
 }
 
 /* 여러 장을 동시에 올립니다 (한 번에 3장씩 병렬 처리) */
@@ -2738,27 +2845,23 @@ async function uploadFiles(files){
   let done = 0, ok = 0, fail = 0;
   const results = new Array(files.length);
   const upd = () => {
-    st.textContent = `⏳ 올리는 중... ${done}/${files.length}`;
+    const bar = '█'.repeat(done) + '░'.repeat(Math.max(0, files.length - done));
+    st.textContent = `⏳ 올리는 중... ${done}/${files.length}  ${bar}`;
   };
   upd();
 
-  // 3장씩 동시에 처리 — 순서는 그대로 유지됩니다
-  const LANES = 3;
-  let next = 0;
-  async function lane(){
-    while(next < files.length){
-      const i = next++;
-      try{
-        results[i] = await uploadOne(files[i], 'images/vol3');
-        ok++;
-      }catch(e){
-        console.error(e); fail++;
-        toast('❌ ' + files[i].name + ' : ' + e.message, 'err');
-      }
-      done++; upd();
+  // GitHub 은 동시에 쓰면 충돌하므로 한 장씩 차례로 올립니다
+  for(let i = 0; i < files.length; i++){
+    try{
+      results[i] = await uploadOne(files[i], 'images/vol3');
+      ok++;
+    }catch(e){
+      console.error(e); fail++;
+      toast('❌ ' + files[i].name + ' : ' + e.message, 'err');
     }
+    done++; upd();
+    if(i < files.length - 1) await sleep(350);   // 충돌을 피하려 살짝 쉽니다
   }
-  await Promise.all(Array.from({length: Math.min(LANES, files.length)}, lane));
 
   // 올린 순서대로 본문에 넣습니다
   results.forEach((path, i) => {
@@ -3482,6 +3585,7 @@ function normalizeGrids(){
     const c    = g.dataset.lc || '#e5e7eb';
     const bd   = (tp || w === '0') ? 'none' : `${w} ${st} ${c}`;
 
+    const fine = g.dataset.fine === '1';
     const gs = [
       'display:grid',
       g.dataset.fr
@@ -3504,6 +3608,7 @@ function normalizeGrids(){
         'flex-direction:column',
         `justify-content:${cell.dataset.va || 'flex-start'}`,
         `padding:${cell.dataset.pad || '16px'}`,
+        cell.dataset.rh ? `min-height:${cell.dataset.rh}px` : '',
         bd === 'none' ? '' : `border:${bd}`,
         sp > 1 ? `grid-column:span ${sp}` : '',
         cell.dataset.bg ? `background:${cell.dataset.bg}` : '',
@@ -4188,16 +4293,208 @@ function bgApply(color){
 }
 
 /* 칸 여백 — 좁게 / 보통 / 넓게 순환 */
-function cellPad(){
+
+/* ═══════ 줄별 칸 너비 ═══════
+   표 전체가 아니라 '한 줄'의 칸 너비만 따로 정할 수 있게 합니다.
+   이를 위해 표를 60칸짜리 잘게 나눈 바탕 위에 올려놓고,
+   각 칸이 몇 칸을 차지하는지로 너비를 표현합니다. */
+const FINE = 60;   // 2·3·4·5·6 으로 모두 나누어떨어지는 수
+
+function ensureFineGrid(g){
+  if(!g || g.dataset.fine === '1') return g;
+  const cols = parseInt(g.dataset.cols) || 1;
+  if(FINE % cols !== 0) return g;             // 나눌 수 없으면 그대로
+  const mul = FINE / cols;
+  g.querySelectorAll(':scope > .wc').forEach(c => {
+    const sp = (parseInt(c.dataset.span) || 1) * mul;
+    c.dataset.span = sp;
+    c.style.gridColumn = 'span ' + sp;
+  });
+  g.dataset.cols = FINE;
+  g.dataset.fine = '1';
+  delete g.dataset.fr;
+  g.style.gridTemplateColumns = `repeat(${FINE},minmax(0,1fr))`;
+  return g;
+}
+
+/* 지금 줄의 칸들과 비율을 구합니다 */
+let rwCells = [], rwVals = [];
+
+function rowWidthDlg(){
+  if(!selCell){ toast('줄을 고를 칸을 먼저 클릭해 주세요.','err'); return; }
+  const g = selCell.closest('.wg'); if(!g) return;
+  ensureFineGrid(g);
+  const info = cellRowInfo(selCell);
+  if(!info || info.row == null){ toast('줄을 찾을 수 없습니다.','err'); return; }
+  rwCells = info.rows[info.row];
+  const total = rwCells.reduce((a,c) => a + (parseInt(c.dataset.span) || 1), 0) || FINE;
+  rwVals = rwCells.map(c => Math.round((parseInt(c.dataset.span) || 1) / total * 100));
+  rwRender();
+  gi('rowWDlgBox').classList.add('open');
+}
+
+function rwRender(){
+  const box = gi('rowWRows');
+  box.innerHTML = rwCells.map((c, i) => {
+    const txt = (c.textContent || '').trim().slice(0, 14) || (c.querySelector('img') ? '사진' : '빈 칸');
+    return `<div style="display:flex;align-items:center;gap:9px">
+      <span style="flex:0 0 96px;font-size:.76rem;font-weight:700;color:var(--text-m);
+        overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${i+1}. ${txt}</span>
+      <input type="range" min="5" max="90" value="${rwVals[i]}" style="flex:1"
+        oninput="rwSet(${i}, this.value)">
+      <input type="number" min="5" max="90" value="${rwVals[i]}" style="width:64px;text-align:center"
+        onchange="rwSet(${i}, this.value); rwRender()">
+      <span style="font-size:.74rem;color:var(--text-s);flex-shrink:0">%</span>
+    </div>`;
+  }).join('');
+  rwBar();
+}
+
+function rwSet(i, v){
+  v = Math.max(5, Math.min(90, parseInt(v) || 5));
+  rwVals[i] = v;
+  // 나머지 칸으로 남은 비율을 나눠 갖습니다
+  const rest = 100 - v;
+  const others = rwVals.length - 1;
+  if(others > 0){
+    const oldSum = rwVals.reduce((a,x,k) => k === i ? a : a + x, 0) || 1;
+    rwVals = rwVals.map((x, k) => k === i ? v : Math.max(5, Math.round(x / oldSum * rest)));
+  }
+  rwBar();
+  const box = gi('rowWRows');
+  if(box) box.querySelectorAll('input[type=range]').forEach((el, k) => el.value = rwVals[k]);
+  if(box) box.querySelectorAll('input[type=number]').forEach((el, k) => el.value = rwVals[k]);
+}
+
+function rwBar(){
+  const bar = gi('rowWBar'); if(!bar) return;
+  const sum = rwVals.reduce((a,b) => a+b, 0) || 1;
+  const cols = ['#40916c','#2d88b5','#c05600','#7c5cbf','#a04752','#1a6b8b'];
+  bar.innerHTML = rwVals.map((v, i) =>
+    `<div style="flex:${v};background:${cols[i % cols.length]};color:#fff;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.68rem;font-weight:800">${Math.round(v/sum*100)}%</div>`).join('');
+}
+
+function rowWEqual(){
+  const n = rwCells.length || 1;
+  rwVals = Array(n).fill(Math.round(100/n));
+  rwRender();
+}
+function rowWPreset(arr){
+  if(rwCells.length !== arr.length){
+    toast(`이 줄은 ${rwCells.length}칸이라 ${arr.length}칸 설정을 쓸 수 없습니다.`,'err'); return;
+  }
+  rwVals = arr.slice(); rwRender();
+}
+
+function rowWApply(){
+  if(!rwCells.length) return;
+  const sum = rwVals.reduce((a,b) => a+b, 0) || 1;
+  let used = 0;
+  rwCells.forEach((c, i) => {
+    let sp = (i === rwCells.length - 1)
+      ? (FINE - used)
+      : Math.max(1, Math.round(rwVals[i] / sum * FINE));
+    used += sp;
+    c.dataset.span = sp;
+    c.style.gridColumn = 'span ' + sp;
+  });
+  gi('rowWDlgBox').classList.remove('open');
+  bindGrid(); syncSrc(); placeColBars();
+  toast('이 줄의 칸 너비를 바꿨습니다.','ok');
+}
+
+/* 고른 칸들의 너비를 똑같이 맞춥니다 (나머지 칸은 그대로) */
+function equalizeCells(){
+  const list = cellsSelected();
+  if(list.length < 2){
+    toast('너비를 맞출 칸을 Ctrl(⌘)을 누른 채 2개 이상 클릭해 주세요.','err'); return;
+  }
+  const g = list[0].closest('.wg');
+  if(!g || list.some(c => c.closest('.wg') !== g)){
+    toast('같은 표 안의 칸만 맞출 수 있습니다.','err'); return;
+  }
+  ensureFineGrid(g);
+  const total = list.reduce((a,c) => a + (parseInt(c.dataset.span) || 1), 0);
+  const each = Math.floor(total / list.length);
+  let used = 0;
+  list.forEach((c, i) => {
+    const sp = (i === list.length - 1) ? (total - used) : each;
+    used += sp;
+    c.dataset.span = sp;
+    c.style.gridColumn = 'span ' + sp;
+  });
+  bindGrid(); syncSrc(); placeColBars();
+  toast(list.length + '칸의 너비를 똑같이 맞췄습니다.','ok');
+}
+
+/* ═══════ 여백 · 줄 높이 ═══════ */
+let padScope = 'cell';
+
+function padDlg(){
   if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
-  const steps = ['10px','20px','32px'];
-  const names = ['보통','넓게','아주 넓게'];
-  const cur = selCell.dataset.pad || '10px';
-  const i = (steps.indexOf(cur) + 1) % steps.length;
-  selCell.style.padding = steps[i];
-  selCell.dataset.pad = steps[i];
-  syncSrc();
-  toast('칸 여백: ' + names[i], 'ok');
+  const cur = parseInt(selCell.dataset.pad) || 16;
+  gi('padRange').value = Math.min(48, cur);
+  padPrev();
+  gi('padDlgBox').classList.add('open');
+}
+function setPad(v){ gi('padRange').value = v; padPrev(); }
+
+function padTargets(){
+  if(!selCell) return [];
+  if(padScope === 'cell') return cellsSelected();
+  const info = cellRowInfo(selCell);
+  if(!info) return [selCell];
+  if(padScope === 'row')  return (info.row != null) ? info.rows[info.row] : [selCell];
+  return info.list;                       // 표 전체
+}
+
+function padPrev(){
+  const v = parseInt(gi('padRange').value) || 0;
+  gi('padVal').textContent = v + 'px';
+  const n = padTargets().length;
+  const name = { cell:'선택한 칸만', row:'이 줄 전체', table:'표 전체' }[padScope];
+  const el = gi('padScopeTxt');
+  if(el) el.textContent = `${name} · ${n}칸에 적용됩니다`;
+}
+
+function padApply(){
+  const v = parseInt(gi('padRange').value) || 0;
+  const list = padTargets();
+  if(!list.length){ toast('적용할 칸이 없습니다.','err'); return; }
+  list.forEach(c => { c.style.padding = v + 'px'; c.dataset.pad = v + 'px'; });
+  gi('padDlgBox').classList.remove('open');
+  syncSrc(); placeColBars();
+  toast(list.length + '칸의 여백을 ' + v + 'px 로 맞췄습니다.','ok');
+}
+
+/* 한 줄의 높이만 조절 */
+function rowHeightDlg(){
+  if(!selCell){ toast('줄을 고를 칸을 먼저 클릭해 주세요.','err'); return; }
+  const cur = parseInt(selCell.dataset.rh) || 0;
+  gi('rowHRange').value = cur;
+  rowHPrev();
+  gi('rowHDlgBox').classList.add('open');
+}
+function setRowH(v){ gi('rowHRange').value = v; rowHPrev(); }
+function rowHPrev(){
+  const v = parseInt(gi('rowHRange').value) || 0;
+  gi('rowHVal').textContent = v ? (v + 'px') : '자동';
+}
+function rowHApply(){
+  const v = parseInt(gi('rowHRange').value) || 0;
+  const info = cellRowInfo(selCell);
+  if(!info || info.row == null){ toast('줄을 찾을 수 없습니다.','err'); return; }
+  const row = info.rows[info.row];
+  row.forEach(c => {
+    if(v){ c.style.minHeight = v + 'px'; c.dataset.rh = v; }
+    else { c.style.minHeight = ''; delete c.dataset.rh; }
+  });
+  gi('rowHDlgBox').classList.remove('open');
+  syncSrc(); placeColBars();
+  toast(v ? ((info.row+1) + '번째 줄 높이를 ' + v + 'px 로 맞췄습니다.')
+          : ((info.row+1) + '번째 줄을 자동 높이로 되돌렸습니다.'), 'ok');
 }
 
 /* 표 선택을 풀어 본문 자리에 넣도록 되돌립니다 */
@@ -4217,6 +4514,7 @@ function repairGrids(){
   const ed = gi('cedit'); if(!ed) return 0;
   let fixed = 0;
 
+  // 줄 너비를 따로 정한 표는 그대로 둡니다
   // 붙여넣기로 딸려온 칸 껍데기(.wc)가 표 밖에 떠 있으면 벗겨냅니다
   ed.querySelectorAll('.wc').forEach(el => {
     if(!el.parentElement || !el.parentElement.classList.contains('wg')){
@@ -4251,6 +4549,8 @@ function repairGrids(){
         fixed++;
       }
     });
+    // 줄 너비를 따로 정한 표(60칸 바탕)는 줄 채우기 검사를 건너뜁니다
+    if(g.dataset.fine === '1') return;
 
     // 마지막 줄이 덜 찼으면 빈 칸을 채워 모양을 맞춥니다
     let used = 0;
