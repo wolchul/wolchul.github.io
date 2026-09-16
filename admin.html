@@ -391,6 +391,9 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc > *:first-child{margin-top:0}
 #cedit .wg .wc > *:last-child{margin-bottom:0}
 #cedit .wg .wc p:empty::before{content:'내용을 입력하세요';color:#c2cad2;font-size:.78rem}
+/* 한글에서 가져온 사진 자리 */
+#cedit .ph-img{background:#fff6e5;border:1.5px dashed #e0a33a;border-radius:7px;
+  padding:14px 10px;text-align:center;color:#a5720f;font-size:.79rem;font-weight:700;margin:0}
 #cedit .wg .wc:hover{border-color:var(--sky)}
 #cedit .wg .wc.sel{border:2px solid var(--sky);background:var(--sky-l)}
 #cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
@@ -4707,7 +4710,6 @@ function bindPaste(){
     e.preventDefault();
 
     if(!html){
-      // 그냥 글자만 붙여넣기
       const t = cb.getData('text/plain') || '';
       document.execCommand('insertHTML', false,
         t.split(/\n/).map(x => '<p>' + x.replace(/[&<>]/g, c =>
@@ -4715,9 +4717,23 @@ function bindPaste(){
       saveCaret(); syncSrc(); return;
     }
 
-    // 표·칸 껍데기를 벗기고 안의 내용만 남깁니다
     const box = document.createElement('div');
     box.innerHTML = html;
+
+    // 한글·워드 등 바깥 프로그램에서 온 표(<table>)인지 확인합니다
+    const outerTable = box.querySelector('table');
+    if(outerTable){
+      const conv = convertTables(box);
+      document.execCommand('insertHTML', false, conv);
+      bindGrid(); saveCaret(); syncSrc();
+      const n = (conv.match(/class="wg"/g) || []).length;
+      const ph = (conv.match(/ph-img/g) || []).length;
+      toast('표 ' + n + '개를 가져왔습니다.'
+        + (ph ? ` 사진 자리 ${ph}곳은 직접 넣어 주세요.` : ''), 'ok');
+      return;
+    }
+
+    // 웹진 안에서 복사한 경우 — 칸 껍데기를 벗기고 내용만 남깁니다
     box.querySelectorAll('.wg, .wc').forEach(el => el.replaceWith(...el.childNodes));
     box.querySelectorAll('[contenteditable],[draggable],[data-b],[data-watch],[data-new]')
        .forEach(el => {
@@ -4729,7 +4745,6 @@ function bindPaste(){
       if(!el.classList.length) el.removeAttribute('class');
       const st = el.getAttribute('style') || '';
       if(st){
-        // 배경·테두리·크기 같은 칸 서식은 걷어내고 글자 서식만 남깁니다
         const keep = st.split(';').filter(r =>
           /^\s*(font-size|font-weight|color|text-align|font-style|text-decoration)\s*:/i.test(r));
         if(el.tagName === 'IMG'){
@@ -4744,6 +4759,159 @@ function bindPaste(){
     document.execCommand('insertHTML', false, box.innerHTML);
     bindGrid(); saveCaret(); syncSrc();
   });
+}
+
+/* ═══════ 한글·워드 표를 웹진 표로 바꾸기 ═══════
+   테두리·배경·정렬·칸 너비를 살리고, 사진 자리는 빈 칸으로 남깁니다. */
+function convertTables(box){
+  box.querySelectorAll('script,style,meta,link,o\\:p').forEach(el => el.remove());
+
+  box.querySelectorAll('table').forEach(tb => {
+    const rows = [...tb.querySelectorAll('tr')];
+    if(!rows.length) return;
+
+    // 가장 칸이 많은 줄을 기준으로 전체 칸 수를 정합니다
+    let cols = 1;
+    rows.forEach(tr => {
+      let n = 0;
+      tr.querySelectorAll('td,th').forEach(td => n += (parseInt(td.getAttribute('colspan')) || 1));
+      if(n > cols) cols = n;
+    });
+    cols = Math.min(Math.max(cols, 1), 12);
+
+    // 표 테두리 색·굵기를 첫 칸에서 가져옵니다
+    const probe = tb.querySelector('td,th');
+    const bd = pickBorder(probe) || pickBorder(tb) || { w:'1px', st:'solid', c:'#333' };
+
+    const wg = document.createElement('div');
+    wg.className = 'wg';
+    wg.dataset.cols = cols;
+    wg.dataset.lw = bd.w; wg.dataset.ls = bd.st; wg.dataset.lc = bd.c;
+    wg.style.display = 'grid';
+    wg.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+    wg.style.border = `${bd.w} ${bd.st} ${bd.c}`;
+
+    rows.forEach(tr => {
+      const cells = [...tr.querySelectorAll('td,th')];
+      cells.forEach(td => {
+        const wc = document.createElement('div');
+        wc.className = 'wc';
+        const sp = Math.min(parseInt(td.getAttribute('colspan')) || 1, cols);
+        if(sp > 1){ wc.dataset.span = sp; wc.style.gridColumn = 'span ' + sp; }
+
+        // 배경색
+        const bg = cellBg(td);
+        if(bg){ wc.dataset.bg = bg; wc.style.background = bg; }
+
+        // 가로 정렬
+        const al = cellAlign(td);
+        if(al){ wc.dataset.al = al; wc.style.textAlign = al; }
+
+        // 세로 정렬
+        const va = (td.getAttribute('valign') || cssOf(td,'vertical-align') || '').toLowerCase();
+        if(/middle|center/.test(va)){ wc.dataset.va = 'center'; wc.style.justifyContent = 'center'; }
+        else if(/bottom/.test(va)){ wc.dataset.va = 'flex-end'; wc.style.justifyContent = 'flex-end'; }
+
+        wc.style.border = `${bd.w} ${bd.st} ${bd.c}`;
+        wc.style.padding = '12px';
+        wc.dataset.pad = '12px';
+
+        wc.innerHTML = cleanCell(td);
+        wg.appendChild(wc);
+      });
+      // 줄이 덜 찼으면 빈 칸으로 채워 모양을 맞춥니다
+      let used = 0;
+      [...wg.querySelectorAll(':scope > .wc')].forEach(c => used += (parseInt(c.dataset.span)||1));
+      const rest = used % cols;
+      if(rest !== 0){
+        for(let i = rest; i < cols; i++){
+          const c = document.createElement('div');
+          c.className = 'wc';
+          c.style.border = `${bd.w} ${bd.st} ${bd.c}`;
+          c.style.padding = '12px';
+          c.innerHTML = '<p><br></p>';
+          wg.appendChild(c);
+        }
+      }
+    });
+
+    tb.replaceWith(wg);
+  });
+
+  return box.innerHTML;
+}
+
+/* 칸 안 내용을 정리 — 사진 자리는 안내로 바꿉니다 */
+function cleanCell(td){
+  const t = document.createElement('div');
+  t.innerHTML = td.innerHTML;
+
+  // 한글이 남긴 사진 설명 문구를 걷어냅니다
+  let hadImg = false;
+  t.querySelectorAll('img').forEach(im => {
+    const src = im.getAttribute('src') || '';
+    // 웹 주소가 아닌 사진(문서 안에 들어 있던 것)은 가져올 수 없습니다
+    if(!/^https?:\/\//i.test(src)){ hadImg = true; im.remove(); }
+  });
+  let html = t.innerHTML;
+  if(/그림입니다|원본 그림의 이름|CLP\d+/.test(html)){
+    hadImg = true;
+    html = html.replace(/그림입니다[\s\S]*?(\d+pixel|\.bmp|\.jpg|\.png)[^<]*/gi, '');
+  }
+
+  t.innerHTML = html;
+  // 남은 서식 정리 — 글자 관련만 유지
+  t.querySelectorAll('*').forEach(el => {
+    if(/^(SCRIPT|STYLE|META|LINK)$/.test(el.tagName)){ el.remove(); return; }
+    el.removeAttribute('class');
+    el.removeAttribute('lang');
+    const st = el.getAttribute('style') || '';
+    const keep = st.split(';').filter(r =>
+      /^\s*(font-weight|font-style|text-decoration|color)\s*:/i.test(r));
+    if(keep.length) el.setAttribute('style', keep.join(';'));
+    else el.removeAttribute('style');
+  });
+
+  const txt = (t.textContent || '').trim();
+  if(!txt){
+    return hadImg
+      ? '<p class="ph-img">📷 사진 자리 — 이 칸을 클릭하고 사진을 넣으세요</p>'
+      : '<p><br></p>';
+  }
+  return (hadImg ? '<p class="ph-img">📷 사진 자리</p>' : '') + t.innerHTML;
+}
+
+/* 테두리 정보 뽑기 */
+function pickBorder(el){
+  if(!el) return null;
+  const st = el.getAttribute('style') || '';
+  const m = /border(?:-top)?\s*:\s*([\d.]+)(?:pt|px)\s+(solid|dashed|dotted|double)\s+([^;]+)/i.exec(st);
+  if(m){
+    let w = Math.max(1, Math.round(parseFloat(m[1])));
+    if(w > 3) w = 3;
+    return { w: w + 'px', st: m[2].toLowerCase(), c: m[3].trim() };
+  }
+  if(/border/i.test(st)) return { w:'1px', st:'solid', c:'#333' };
+  return null;
+}
+function cssOf(el, prop){
+  const st = el.getAttribute('style') || '';
+  const m = new RegExp(prop + '\\s*:\\s*([^;]+)', 'i').exec(st);
+  return m ? m[1].trim() : '';
+}
+function cellBg(td){
+  const c = cssOf(td,'background-color') || cssOf(td,'background') || td.getAttribute('bgcolor') || '';
+  if(!c) return '';
+  if(/transparent|none|#fff(fff)?$|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)/i.test(c)) return '';
+  const m = /#[0-9a-f]{3,6}|rgba?\([^)]+\)/i.exec(c);
+  return m ? m[0] : '';
+}
+function cellAlign(td){
+  const a = (td.getAttribute('align') || cssOf(td,'text-align') || '').toLowerCase();
+  if(/center/.test(a)) return 'center';
+  if(/right/.test(a)) return 'right';
+  if(/justify/.test(a)) return 'justify';
+  return '';
 }
 
 /* 편집창에서 커서가 움직일 때마다 위치를 기억합니다 */
@@ -4864,6 +5032,7 @@ function imgAlign(al){
 /* 편집 내용을 HTML 칸과 동기화 */
 function cleanHTML(h){
   return String(h||'')
+    .replace(/<p class="ph-img">[^<]*<\/p>/gi, '')   // 사진 자리 안내는 저장하지 않습니다
     .replace(/(<img[^>]+src=")([^"]*?)\?t=\d+(")/gi, '$1$2$3')   // 재시도용 꼬리표 제거
     .replace(/opacity:\s*0?\.\d+;?/gi, '')                        // 잘못 남은 반투명 제거
     .replace(/(<img(?![^>]*max-width)[^>]*style=")/gi, '$1max-width:100%;')  // 칸을 넘지 않게
