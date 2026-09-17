@@ -535,13 +535,10 @@ img{max-width:100%}
   .wz-body .wg .wc{padding:6px 8px !important;min-width:0;
     break-inside:avoid;page-break-inside:avoid;
     display:block !important}
-  /* 4칸(사진|글|사진|글)은 인쇄에서 2단으로 접습니다 — 한 줄에 글이 넉넉히 들어가도록 */
-  .wz-body .wg[data-cols="4"]{grid-template-columns:30% 70% !important}
-  .wz-body .wg[data-cols="2"]{grid-template-columns:30% 70% !important}
-  .wz-body .wg[data-cols="6"]{grid-template-columns:30% 70% !important}
-  .wz-body .wg[data-cols="3"]{grid-template-columns:30% 70% !important}
-  /* 넓게 합친 칸은 한 줄 전체를 쓰게 */
-  .wz-body .wg .wc[data-span]{grid-column:1 / -1 !important}
+  /* 사진|글 이 반복되는 표만 2단으로 접습니다 (글이 세로로 늘어지는 것 방지).
+     사진이 여러 장 이어지는 표는 화면 그대로 인쇄합니다. */
+  .wz-body .wg.pr-fold{grid-template-columns:30% 70% !important}
+  .wz-body .wg.pr-fold .wc[data-span]{grid-column:1 / -1 !important}
 
   .wz-body .wg img{width:100% !important;height:auto !important;max-width:100% !important}
   .wz-body{font-size:9.5pt;line-height:1.5}
@@ -606,9 +603,12 @@ img{max-width:100%}
 /* 본문 안 표 */
 /* 표 — 같은 줄의 칸은 높이를 맞춥니다 */
 .wz-body .wg{display:grid;gap:0;margin:20px 0;align-items:stretch;
-  border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
-.wz-body .wg .wc{min-width:0;padding:16px;border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden}
+.wz-body .wg .wc{min-width:0;padding:16px;
   display:flex;flex-direction:column;justify-content:flex-start}
+/* 기사에 테두리가 저장돼 있으면 그것을 쓰고, 없으면 기본 선을 넣습니다 */
+.wz-body .wg:not([style*="border"]){border:1px solid var(--line)}
+.wz-body .wg .wc:not([style*="border"]){border:1px solid var(--line)}
 .wz-body .wg .wc > *{width:100%;align-self:stretch}
 /* 투명 선 — 작성 화면에서만 점선으로 보이고 여기서는 완전히 감춥니다 */
 .wz-body .wg.line-none,
@@ -2215,9 +2215,32 @@ function showToast(msg){
 }
 
 /* 인쇄 — 접힌 '사진 속 글'을 펼치고 인쇄한 뒤 되돌립니다 */
+/* 인쇄할 때 2단으로 접을 표를 고릅니다.
+   '사진 칸 → 글 칸'이 번갈아 나오는 표만 접고,
+   사진이 여러 장 이어지는 표는 그대로 둡니다. */
+function markFoldTables(){
+  const marked = [];
+  document.querySelectorAll('.wz-body .wg').forEach(g => {
+    const cells = [...g.querySelectorAll(':scope > .wc')];
+    if(cells.length < 2) return;
+    let pairs = 0, imgRun = 0, maxRun = 0;
+    cells.forEach(c => {
+      const hasImg = !!c.querySelector('img');
+      const hasTxt = (c.textContent || '').trim().length > 4;
+      if(hasImg && !hasTxt){ imgRun++; maxRun = Math.max(maxRun, imgRun); }
+      else { if(imgRun === 1 && hasTxt) pairs++; imgRun = 0; }
+    });
+    // 사진이 두 장 넘게 이어지면 접지 않습니다
+    if(maxRun >= 2) return;
+    if(pairs >= 1){ g.classList.add('pr-fold'); marked.push(g); }
+  });
+  return marked;
+}
+
 function printIssue(){
   // 읽어주기가 돌고 있으면 멈춥니다 (인쇄 중 표시가 찍히지 않게)
   if(typeof stopTTS === 'function') stopTTS();
+  const folded = markFoldTables();
 
   const opened = [];
   document.querySelectorAll('.imgtxt-body').forEach(b => {
@@ -2234,6 +2257,7 @@ function printIssue(){
   if(t) t.style.opacity = '0';
 
   const restore = () => {
+    folded.forEach(g => g.classList.remove('pr-fold'));
     opened.forEach(b => b.classList.remove('open'));
     if(fzL) r.classList.add('fz-l');
     if(fzX) r.classList.add('fz-x');

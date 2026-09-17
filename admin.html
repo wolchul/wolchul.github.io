@@ -362,6 +362,8 @@ input,select,textarea{font-family:inherit}
 #cedit.selmode .wc.drag-src{opacity:.4}
 #cedit.selmode .wc.drop-t{outline:2px dashed var(--navy);outline-offset:-2px;background:#e3f0f8 !important}
 #selModeBtn.on{background:var(--sky) !important;color:#fff !important;border-color:var(--sky) !important}
+.ct button:disabled{opacity:.35;cursor:default}
+.ct button:disabled:hover{background:var(--white);color:var(--text-m);border-color:var(--border)}
 
 /* 투명 선 — 작성 화면에서만 빨간 점선으로 표시 (한글과 동일) */
 #cedit .wg.line-none{border:1px dashed #e03131 !important;background:transparent}
@@ -678,6 +680,15 @@ input,select,textarea{font-family:inherit}
               <label>본문 내용 <span class="req">*</span></label>
               <div class="ce">
                 <div class="ct">
+                  <!-- 되돌리기 -->
+                  <div class="ct-g">
+                    <span class="ct-gl">실행</span>
+                    <button onclick="doUndo()" type="button" id="undoBtn"
+                      title="되돌리기 (Ctrl+Z)">↶ 되돌리기</button>
+                    <button onclick="doRedo()" type="button" id="redoBtn"
+                      title="다시 실행 (Ctrl+Y)">↷ 다시</button>
+                  </div>
+
                   <!-- 글꼴 -->
                   <div class="ct-g">
                     <span class="ct-gl">글꼴</span>
@@ -2250,7 +2261,7 @@ function newArt(){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); bindUndo(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -2304,7 +2315,7 @@ function copyArt(id){
   selCell = null; selImg = null; lastRange = null;
   setTimeout(() => {
     initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode();
-    bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); showInsertHint();
+    bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); bindUndo(); showInsertHint();
     fixImgSrcs(); repairGrids();
     gi('etti').focus();
     gi('etti').select();
@@ -2333,7 +2344,7 @@ function editArt(id){
   go('peditor',null);
   selCell=null; selImg=null; lastRange=null;
   setTimeout(()=>{
-    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); showInsertHint();
+    initDropZone(); bindGrid(); bindCaret(); bindPaste(); bindSelMode(); bindBlockDrag(); bindImgDrag(); bindDeleteGuard(); bindUndo(); showInsertHint();
     const n = fixImgSrcs();
     const g = repairGrids();
     if(n || g) toast('어긋난 부분 ' + (n+g) + '곳을 바로잡았습니다. 저장해 주세요.','ok');
@@ -2425,6 +2436,7 @@ function insertImg(){ insertImgUrl(); }
 async function saveArt(){
   const title=gi('etti').value.trim(), summary=gi('esum').value.trim();
   hideHandles(); hideColBars();
+  if(typeof unlockCells === 'function') unlockCells();
   if(!srcMode){ repairGrids(); normalizeGrids(); }
   const cont=cleanHTML(srcMode?gi('csrc').value:gi('cedit').innerHTML).trim();
   if(!title){ toast('제목을 입력해주세요.','err'); return; }
@@ -2588,6 +2600,7 @@ function fixImgSrcs(){
 
 /* 사진을 커서가 있던 자리에 넣습니다 */
 function insertImageInto(url){
+  if(typeof pushUndo === 'function') pushUndo();
   const ed = gi('cedit');
   const r = restoreCaret();
   const cell = caretCell();
@@ -2639,6 +2652,7 @@ function gridMake(){
 }
 
 function gridInsert(cols, rows){
+  if(typeof pushUndo === 'function') pushUndo();
   const cells = Array.from({length: cols*rows}, () =>
     '<div class="wc"><p><br></p></div>').join('');
   const html = `<div class="wg" data-cols="${cols}" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${cells}</div><p><br></p>`;
@@ -2649,6 +2663,7 @@ function gridInsert(cols, rows){
 }
 
 function gridDel(){
+  if(typeof pushUndo === 'function') pushUndo();
   const g = selCell ? selCell.closest('.wg') : null;
   if(!g){ toast('지울 표의 칸을 먼저 클릭해 주세요.','err'); return; }
   if(!confirm('이 표를 지울까요? 안의 내용도 함께 지워집니다.')) return;
@@ -2676,6 +2691,7 @@ function cellRowInfo(cell){
 }
 
 function rowAdd(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('기준이 될 칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info || info.row == null) return;
   const last = info.rows[info.row][info.rows[info.row].length - 1];
@@ -2691,6 +2707,7 @@ function rowAdd(){
 }
 
 function rowDel(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('지울 줄의 칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info || info.row == null) return;
   if(info.rows.length <= 1){ toast('마지막 한 줄은 지울 수 없습니다. 표 삭제를 사용해 주세요.','err'); return; }
@@ -2702,6 +2719,7 @@ function rowDel(){
 }
 
 function colAdd(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('표의 칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info) return;
   if(info.cols >= 6){ toast('가로는 최대 6칸까지입니다.','err'); return; }
@@ -2723,6 +2741,7 @@ function cellClear(){ cellsClear(); }
 
 /* 칸 넓히기 / 좁히기 (한글의 셀 병합처럼) */
 function cellMerge(delta){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info) return;
   let sp = (parseInt(selCell.dataset.span) || 1) + delta;
@@ -3258,6 +3277,7 @@ function fitPrev(){
 }
 
 function fitApply(ratio){
+  if(typeof pushUndo === 'function') pushUndo();
   const imgs = fitTargets();
   if(!imgs.length){ toast('적용할 사진이 없습니다.','err'); return; }
   imgs.forEach(im => {
@@ -3312,6 +3332,7 @@ function iszPreset(f){
   gi('iszH').value = Math.round(selImg.naturalHeight * f);
 }
 function iszFull(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selImg) return;
   selImg.style.width = '100%'; selImg.style.height = 'auto';
   selImg.dataset.sz = 'f'; delete selImg.dataset.px;
@@ -3319,6 +3340,7 @@ function iszFull(){
   syncSrc(); toast('칸에 꽉 차게 맞췄습니다.','ok');
 }
 function iszApply(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selImg) return;
   const w = parseInt(gi('iszW').value) || 0;
   const h = parseInt(gi('iszH').value) || 0;
@@ -3428,6 +3450,7 @@ window.addEventListener('resize', placeHandles);
 
 /* ═══════ 글자 크기 ═══════ */
 function setFontSize(px){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!px) return;
   const ed = gi('cedit');
   restoreCaret();
@@ -3501,6 +3524,7 @@ function btnPrev(){
 }
 
 function btnInsert(){
+  if(typeof pushUndo === 'function') pushUndo();
   const ed = gi('cedit');
   const html = btnHTML() + '<p><br></p>';
   const r = restoreCaret();
@@ -3527,6 +3551,7 @@ function imgAlt(){
 }
 
 function altSave(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selImg){ gi('altDlg').classList.remove('open'); return; }
   const txt = (gi('altText').value || '').trim();
   const esc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3646,6 +3671,7 @@ function bindSelMode(){
       ed.querySelectorAll('.wc').forEach(x => x.classList.remove('drop-t'));
       moveSrc.classList.remove('drag-src');
       if(c && c !== moveSrc){
+        if(typeof pushUndo === 'function') pushUndo();
         const tmp = c.innerHTML;
         c.innerHTML = moveSrc.innerHTML;      // 서로 바꿔치기
         moveSrc.innerHTML = tmp || '<p><br></p>';
@@ -3714,6 +3740,7 @@ function normalizeGrids(){
 
 /* 선택한 칸을 좌우 둘로 나눕니다 */
 function cellSplitH(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('나눌 칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info) return;
 
@@ -3756,6 +3783,7 @@ function newCell(span){
 
 /* Ctrl+클릭으로 고른 칸들을 하나로 합칩니다 (같은 줄, 서로 붙어 있어야 함) */
 function cellMergeSel(){
+  if(typeof pushUndo === 'function') pushUndo();
   const list = cellsSelected();
   if(list.length < 2){
     toast('합칠 칸을 Ctrl(⌘)을 누른 채 2개 이상 클릭해 주세요.','err'); return;
@@ -3804,6 +3832,7 @@ function cellMergeSel(){
 /* ═══════ 글 정렬 ═══════
    표 칸 안이면 그 칸에만, 밖이면 본문 문단에 적용됩니다. */
 function alignText(dir){
+  if(typeof pushUndo === 'function') pushUndo();
   const ed = gi('cedit'); if(!ed) return;
   const map = { Left:'left', Center:'center', Right:'right', Full:'justify' };
   const css = map[dir] || 'left';
@@ -3870,6 +3899,7 @@ function alignName(css){
 
 /* 칸 안에서 위 / 가운데 / 아래 (세로 위치) — 버튼으로 바로 지정 */
 function setVAlign(pos){
+  if(typeof pushUndo === 'function') pushUndo();
   const list = cellsSelected();
   if(!list.length){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
   const map = { top:'flex-start', middle:'center', bottom:'flex-end' };
@@ -3902,6 +3932,7 @@ function doSplit(mode){
 
 /* 줄을 위아래 둘로 나눕니다 (그 줄 아래에 같은 칸 수의 줄을 하나 더) */
 function rowSplit(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info || info.row == null) return;
   const row = info.rows[info.row];
@@ -3921,6 +3952,7 @@ function rowSplit(){
 
 /* 표 자체를 둘로 가릅니다 */
 function tableSplit(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info || info.row == null) return;
   if(info.rows.length < 2){ toast('줄이 하나뿐이라 표를 나눌 수 없습니다.','err'); return; }
@@ -3948,6 +3980,7 @@ function tableSplit(){
 
 /* 칸 자체를 없앱니다 (남은 칸이 그 자리를 채웁니다) */
 function cellDel(){
+  if(typeof pushUndo === 'function') pushUndo();
   const list = cellsSelected();
   if(!list.length){ toast('없앨 칸을 먼저 클릭해 주세요.','err'); return; }
   const g = list[0].closest('.wg'); if(!g) return;
@@ -3982,9 +4015,184 @@ function cellDel(){
 
 /* ═══════ Delete·Backspace 보호 ═══════
    실수로 표 전체가 지워지지 않게 막고, 사진만 깔끔히 지웁니다. */
+
+/* ═══════ 되돌리기 · 다시 실행 ═══════
+   브라우저 기본 되돌리기는 글자 입력만 기억해서, 사진 삭제나 표 작업은
+   되돌려지지 않았습니다. 여기서는 편집창 전체를 단계별로 기억합니다. */
+const UNDO_MAX = 60;
+let undoStack = [], redoStack = [], undoBusy = false, undoTimer = null;
+
+/* 지금 상태를 기억해 둡니다 (변경 '전'에 부릅니다) */
+function pushUndo(){
+  const ed = gi('cedit'); if(!ed || undoBusy) return;
+  const html = ed.innerHTML;
+  if(undoStack.length && undoStack[undoStack.length-1] === html) return;
+  undoStack.push(html);
+  if(undoStack.length > UNDO_MAX) undoStack.shift();
+  redoStack = [];
+  updateUndoBtns();
+}
+
+/* 글자를 치는 중에는 잠시 모아서 한 번만 기억합니다 */
+function pushUndoDebounced(){
+  if(undoTimer) return;
+  pushUndo();
+  undoTimer = setTimeout(() => { undoTimer = null; }, 700);
+}
+
+function doUndo(){
+  const ed = gi('cedit'); if(!ed) return;
+  if(!undoStack.length){ toast('되돌릴 내용이 없습니다.','err'); return; }
+  undoBusy = true;
+  redoStack.push(ed.innerHTML);
+  ed.innerHTML = undoStack.pop();
+  afterUndo();
+  toast('되돌렸습니다.','ok');
+}
+
+function doRedo(){
+  const ed = gi('cedit'); if(!ed) return;
+  if(!redoStack.length){ toast('다시 실행할 내용이 없습니다.','err'); return; }
+  undoBusy = true;
+  undoStack.push(ed.innerHTML);
+  ed.innerHTML = redoStack.pop();
+  afterUndo();
+  toast('다시 실행했습니다.','ok');
+}
+
+function afterUndo(){
+  selCell = null; selImg = null; lastRange = null;
+  hideHandles(); hideColBars();
+  if(typeof clearMulti === 'function') clearMulti();
+  bindGrid();
+  syncSrc();
+  updateUndoBtns();
+  undoBusy = false;
+}
+
+function updateUndoBtns(){
+  const u = gi('undoBtn'), r = gi('redoBtn');
+  if(u) u.disabled = !undoStack.length;
+  if(r) r.disabled = !redoStack.length;
+}
+
+/* 편집창에 연결 */
+function bindUndo(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.ub) return;
+  ed.dataset.ub = '1';
+  undoStack = []; redoStack = []; updateUndoBtns();
+
+  // 글자 입력·삭제
+  ed.addEventListener('beforeinput', () => { if(!undoBusy) pushUndoDebounced(); });
+
+  // 단축키
+  ed.addEventListener('keydown', e => {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if(!ctrl) return;
+    const k = e.key.toLowerCase();
+    if(k === 'z' && !e.shiftKey){ e.preventDefault(); doUndo(); }
+    else if(k === 'y' || (k === 'z' && e.shiftKey)){ e.preventDefault(); doRedo(); }
+  });
+}
+
+/* 지금 쓰는 칸만 남기고 나머지 칸을 잠급니다 (선택이 넘어가지 못하게) */
+function lockOtherCells(keep){
+  const ed = gi('cedit'); if(!ed) return;
+  ed.querySelectorAll('.wg .wc').forEach(c => {
+    if(c === keep) return;
+    c.style.userSelect = 'none';
+    c.style.webkitUserSelect = 'none';
+    c.dataset.locked = '1';
+  });
+}
+function unlockCells(){
+  const ed = gi('cedit'); if(!ed) return;
+  ed.querySelectorAll('.wc[data-locked]').forEach(c => {
+    c.style.userSelect = '';
+    c.style.webkitUserSelect = '';
+    delete c.dataset.locked;
+  });
+}
+/* 선택 범위를 그 칸 안으로 가둡니다 */
+function clampToCell(cell){
+  const sel = window.getSelection();
+  if(!sel || !sel.rangeCount || !cell) return;
+  const r = sel.getRangeAt(0);
+  const fix = document.createRange();
+  const inStart = nodeCell(r.startContainer) === cell;
+  const inEnd   = nodeCell(r.endContainer) === cell;
+  if(inStart) fix.setStart(r.startContainer, r.startOffset);
+  else fix.setStart(cell, 0);
+  if(inEnd) fix.setEnd(r.endContainer, r.endOffset);
+  else fix.setEnd(cell, cell.childNodes.length);
+  sel.removeAllRanges(); sel.addRange(fix);
+}
+
+/* 어떤 위치가 어느 표 칸 안에 있는지 */
+function nodeCell(n){
+  if(n && n.nodeType === 3) n = n.parentElement;
+  return (n && n.closest) ? n.closest('.wc') : null;
+}
+
 function bindDeleteGuard(){
   const ed = gi('cedit'); if(!ed || ed.dataset.dg) return;
   ed.dataset.dg = '1';
+
+  /* ── 한글 표처럼, 선택이 칸을 아예 못 넘어가게 합니다 ──
+     마우스를 누른 칸을 기억해 두고, 끄는 동안 그 칸 밖은 잠가 둡니다. */
+  let dragCell = null;
+
+  ed.addEventListener('mousedown', e => {
+    dragCell = nodeCell(e.target);
+    if(dragCell) lockOtherCells(dragCell);
+    else unlockCells();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if(dragCell){ unlockCells(); dragCell = null; }
+  });
+
+  // 칸 안에서 Ctrl+A 는 그 칸만 전체 선택합니다 (한글과 동일)
+  ed.addEventListener('keydown', e => {
+    if(!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'a') return;
+    const sel = window.getSelection();
+    const cell = sel && sel.rangeCount ? nodeCell(sel.anchorNode) : null;
+    if(!cell) return;
+    e.preventDefault();
+    const r = document.createRange();
+    r.selectNodeContents(cell);
+    sel.removeAllRanges(); sel.addRange(r);
+  });
+
+  // 키보드(Shift+방향키)로 넘어가는 것도 막습니다
+  ed.addEventListener('keydown', e => {
+    if(!e.shiftKey) return;
+    if(!/^Arrow|^Home$|^End$|^Page/.test(e.key)) return;
+    const sel = window.getSelection();
+    if(!sel || !sel.rangeCount) return;
+    const cell = nodeCell(sel.anchorNode);
+    if(!cell) return;
+    setTimeout(() => {
+      const s2 = window.getSelection();
+      if(!s2 || !s2.rangeCount) return;
+      const r2 = s2.getRangeAt(0);
+      if(nodeCell(r2.startContainer) !== cell || nodeCell(r2.endContainer) !== cell){
+        clampToCell(cell);
+      }
+    }, 0);
+  });
+
+  /* 잘라내기도 칸 안에서만 */
+  ed.addEventListener('cut', e => {
+    const sel = window.getSelection();
+    if(!sel || !sel.rangeCount || sel.isCollapsed) return;
+    const r = sel.getRangeAt(0);
+    const cs = nodeCell(r.startContainer), ce = nodeCell(r.endContainer);
+    if((cs || ce) && cs !== ce){
+      e.preventDefault();
+      toast('칸을 넘어서는 잘라낼 수 없습니다.','err');
+    }
+  });
 
   ed.addEventListener('keydown', e => {
     if(e.key !== 'Delete' && e.key !== 'Backspace') return;
@@ -3992,6 +4200,7 @@ function bindDeleteGuard(){
     // ① 사진을 고른 상태면 사진만 지웁니다
     if(selImg && ed.contains(selImg)){
       e.preventDefault();
+      if(typeof pushUndo === 'function') pushUndo();
       const cell = selImg.closest('.wc');
       const fig  = selImg.closest('figure.imgtxt');
       (fig || selImg).remove();
@@ -4004,10 +4213,39 @@ function bindDeleteGuard(){
       return;
     }
 
-    // ② 표가 통째로 선택돼 지워지려는 경우를 막습니다
     const sel = window.getSelection();
     if(!sel || !sel.rangeCount) return;
     const r = sel.getRangeAt(0);
+
+    // ②-0 한글 표처럼 — 지우기는 칸 하나 안에서만 일어납니다
+    if(!r.collapsed){
+      const cs = nodeCell(r.startContainer);
+      const ce = nodeCell(r.endContainer);
+      if(cs || ce){
+        if(cs !== ce){
+          // 선택이 칸 경계를 넘었습니다 — 시작한 칸 안쪽만 지웁니다
+          e.preventDefault();
+          if(typeof pushUndo === 'function') pushUndo();
+          const cell = cs || ce;
+          const inner = document.createRange();
+          inner.selectNodeContents(cell);
+          // 선택 범위와 칸의 겹치는 부분만 남깁니다
+          if(cs){ inner.setStart(r.startContainer, r.startOffset); }
+          else  { inner.setEnd(r.endContainer, r.endOffset); }
+          inner.deleteContents();
+          if(!cell.innerHTML.trim()) cell.innerHTML = '<p><br></p>';
+          sel.removeAllRanges();
+          const c2 = document.createRange();
+          c2.selectNodeContents(cell); c2.collapse(true);
+          sel.addRange(c2);
+          saveCaret(); syncSrc();
+          toast('칸 안에서만 지웠습니다. 옆 칸은 그대로입니다.','ok');
+          return;
+        }
+      }
+    }
+
+    // ② 표가 통째로 선택돼 지워지려는 경우를 막습니다
 
     // 선택 범위 안에 표가 들어 있으면 차단
     if(!r.collapsed){
@@ -4108,6 +4346,7 @@ function bindImgDrag(){
   ed.addEventListener('drop', e => {
     if(!selImg) return;
     e.preventDefault();
+    if(typeof pushUndo === 'function') pushUndo();
     const cell = e.target.closest && e.target.closest('.wc');
 
     if(cell){
@@ -4158,6 +4397,7 @@ function currentBlock(){
 }
 
 function blockMove(dir){
+  if(typeof pushUndo === 'function') pushUndo();
   const ed = gi('cedit');
   const b = currentBlock();
   if(!b){ toast('옮길 표나 문단을 먼저 클릭해 주세요.','err'); return; }
@@ -4209,6 +4449,7 @@ function bindBlockDrag(){
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
       if(src && line && line.parentElement){
+        if(typeof pushUndo === 'function') pushUndo();
         line.replaceWith(src);
         src.classList.add('blk-moved');
         setTimeout(() => src && src.classList.remove('blk-moved'), 700);
@@ -4227,6 +4468,7 @@ function bindBlockDrag(){
 
 /* 표 위/아래에 글 쓸 빈 줄을 넣습니다 (표가 맨 위·맨 아래일 때 유용) */
 function blockAround(where){
+  if(typeof pushUndo === 'function') pushUndo();
   const ed = gi('cedit');
   const b = currentBlock();
   if(!b){ toast('기준이 될 표나 문단을 먼저 클릭해 주세요.','err'); return; }
@@ -4288,11 +4530,13 @@ function applyLine(g){
 }
 
 function setLineW(v){
+  if(typeof pushUndo === 'function') pushUndo();
   const g = curGrid(); if(!g) return;
   delete g.dataset.line; g.dataset.lw = v; applyLine(g);
   toast('선 굵기를 바꿨습니다.','ok');
 }
 function setLineS(v){
+  if(typeof pushUndo === 'function') pushUndo();
   const g = curGrid(); if(!g) return;
   delete g.dataset.line; g.dataset.ls = v; applyLine(g);
   toast('선 모양을 바꿨습니다.','ok');
@@ -4302,6 +4546,7 @@ function setLineC(v){
   delete g.dataset.line; g.dataset.lc = v; applyLine(g);
 }
 function setLineTransparent(){
+  if(typeof pushUndo === 'function') pushUndo();
   const g = curGrid(); if(!g) return;
   g.dataset.line = 'none'; applyLine(g);
   gi('lineDlgBox').classList.remove('open');
@@ -4323,6 +4568,7 @@ function clearMulti(){
 
 /* 선택한 칸들을 한꺼번에 비우기 */
 function cellsClear(){
+  if(typeof pushUndo === 'function') pushUndo();
   const list = cellsSelected();
   if(!list.length){ toast('비울 칸을 먼저 클릭해 주세요.','err'); return; }
   if(list.length > 1 && !confirm(list.length + '개 칸의 내용을 지울까요?')) return;
@@ -4366,6 +4612,7 @@ function bgPick(mode){
 }
 
 function bgApply(color){
+  if(typeof pushUndo === 'function') pushUndo();
   if(bgMode === 'grid'){
     const g = curGrid(); if(!g) return;
     if(color){ g.style.background = color; g.dataset.bg = color; }
@@ -4514,6 +4761,7 @@ function rowWPreset(arr){
 }
 
 function rowWApply(){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!rwCells.length) return;
   const sum = rwVals.reduce((a,b) => a+b, 0) || 1;
   let used = 0;
@@ -4532,6 +4780,7 @@ function rowWApply(){
 
 /* 고른 칸들의 너비를 똑같이 맞춥니다 (나머지 칸은 그대로) */
 function equalizeCells(){
+  if(typeof pushUndo === 'function') pushUndo();
   const list = cellsSelected();
   if(list.length < 2){
     toast('너비를 맞출 칸을 Ctrl(⌘)을 누른 채 2개 이상 클릭해 주세요.','err'); return;
@@ -4585,6 +4834,7 @@ function padPrev(){
 }
 
 function padApply(){
+  if(typeof pushUndo === 'function') pushUndo();
   const v = parseInt(gi('padRange').value) || 0;
   const list = padTargets();
   if(!list.length){ toast('적용할 칸이 없습니다.','err'); return; }
@@ -4608,6 +4858,7 @@ function rowHPrev(){
   gi('rowHVal').textContent = v ? (v + 'px') : '자동';
 }
 function rowHApply(){
+  if(typeof pushUndo === 'function') pushUndo();
   const v = parseInt(gi('rowHRange').value) || 0;
   const info = cellRowInfo(selCell);
   if(!info || info.row == null){ toast('줄을 찾을 수 없습니다.','err'); return; }
@@ -4706,6 +4957,7 @@ function bindPaste(){
   ed.dataset.pb = '1';
   ed.addEventListener('paste', e => {
     const cb = e.clipboardData; if(!cb) return;
+    if(typeof pushUndo === 'function') pushUndo();
     const html = cb.getData('text/html');
     e.preventDefault();
 
@@ -4770,44 +5022,54 @@ function convertTables(box){
     const rows = [...tb.querySelectorAll('tr')];
     if(!rows.length) return;
 
-    // 가장 칸이 많은 줄을 기준으로 전체 칸 수를 정합니다
-    let cols = 1;
-    rows.forEach(tr => {
-      let n = 0;
-      tr.querySelectorAll('td,th').forEach(td => n += (parseInt(td.getAttribute('colspan')) || 1));
-      if(n > cols) cols = n;
-    });
-    cols = Math.min(Math.max(cols, 1), 12);
+    // 한글 표는 줄마다 칸 너비가 다를 수 있어, 60칸 바탕 위에 올려 그대로 옮깁니다
+    const FINE60 = 60;
 
-    // 표 테두리 색·굵기를 첫 칸에서 가져옵니다
     const probe = tb.querySelector('td,th');
     const bd = pickBorder(probe) || pickBorder(tb) || { w:'1px', st:'solid', c:'#333' };
 
     const wg = document.createElement('div');
     wg.className = 'wg';
-    wg.dataset.cols = cols;
+    wg.dataset.cols = FINE60;
+    wg.dataset.fine = '1';
     wg.dataset.lw = bd.w; wg.dataset.ls = bd.st; wg.dataset.lc = bd.c;
     wg.style.display = 'grid';
-    wg.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+    wg.style.gridTemplateColumns = `repeat(${FINE60},minmax(0,1fr))`;
     wg.style.border = `${bd.w} ${bd.st} ${bd.c}`;
 
     rows.forEach(tr => {
       const cells = [...tr.querySelectorAll('td,th')];
-      cells.forEach(td => {
+      if(!cells.length) return;
+
+      // 이 줄의 각 칸이 차지하는 너비를 재서 비율로 만듭니다
+      const ws = cells.map(td => cellWidth(td));
+      const known = ws.filter(v => v > 0);
+      const sum = known.reduce((a,b) => a + b, 0);
+      let ratio;
+      if(known.length === cells.length && sum > 0){
+        ratio = ws.map(v => v / sum);                 // 한글이 알려준 너비 그대로
+      }else{
+        ratio = cells.map(() => 1 / cells.length);    // 모르면 균등하게
+      }
+
+      let used = 0;
+      cells.forEach((td, i) => {
         const wc = document.createElement('div');
         wc.className = 'wc';
-        const sp = Math.min(parseInt(td.getAttribute('colspan')) || 1, cols);
-        if(sp > 1){ wc.dataset.span = sp; wc.style.gridColumn = 'span ' + sp; }
 
-        // 배경색
+        const sp = (i === cells.length - 1)
+          ? (FINE60 - used)
+          : Math.max(2, Math.round(ratio[i] * FINE60));
+        used += sp;
+        wc.dataset.span = sp;
+        wc.style.gridColumn = 'span ' + sp;
+
         const bg = cellBg(td);
         if(bg){ wc.dataset.bg = bg; wc.style.background = bg; }
 
-        // 가로 정렬
         const al = cellAlign(td);
         if(al){ wc.dataset.al = al; wc.style.textAlign = al; }
 
-        // 세로 정렬
         const va = (td.getAttribute('valign') || cssOf(td,'vertical-align') || '').toLowerCase();
         if(/middle|center/.test(va)){ wc.dataset.va = 'center'; wc.style.justifyContent = 'center'; }
         else if(/bottom/.test(va)){ wc.dataset.va = 'flex-end'; wc.style.justifyContent = 'flex-end'; }
@@ -4819,26 +5081,29 @@ function convertTables(box){
         wc.innerHTML = cleanCell(td);
         wg.appendChild(wc);
       });
-      // 줄이 덜 찼으면 빈 칸으로 채워 모양을 맞춥니다
-      let used = 0;
-      [...wg.querySelectorAll(':scope > .wc')].forEach(c => used += (parseInt(c.dataset.span)||1));
-      const rest = used % cols;
-      if(rest !== 0){
-        for(let i = rest; i < cols; i++){
-          const c = document.createElement('div');
-          c.className = 'wc';
-          c.style.border = `${bd.w} ${bd.st} ${bd.c}`;
-          c.style.padding = '12px';
-          c.innerHTML = '<p><br></p>';
-          wg.appendChild(c);
-        }
-      }
     });
 
     tb.replaceWith(wg);
   });
 
   return box.innerHTML;
+}
+
+/* 칸의 너비를 재서 숫자로 돌려줍니다 (pt·px·% 모두 처리) */
+function cellWidth(td){
+  const span = parseInt(td.getAttribute('colspan')) || 1;
+  const st = td.getAttribute('style') || '';
+  let m = /width\s*:\s*([\d.]+)\s*(pt|px|%|em)?/i.exec(st);
+  if(!m){
+    const attr = td.getAttribute('width');
+    if(attr) m = /([\d.]+)\s*(%)?/.exec(attr);
+  }
+  if(!m) return 0;
+  let v = parseFloat(m[1]) || 0;
+  const unit = (m[2] || 'px').toLowerCase();
+  if(unit === 'pt') v = v * 1.333;      // 포인트를 픽셀로
+  if(unit === 'em') v = v * 16;
+  return v > 0 ? v : span;              // 못 재면 병합 수만큼
 }
 
 /* 칸 안 내용을 정리 — 사진 자리는 안내로 바꿉니다 */
@@ -5000,6 +5265,7 @@ function bindGrid(){
 
 /* 사진 크기 / 정렬 */
 function imgSize(sz){
+  if(typeof pushUndo === 'function') pushUndo();
   if(!selImg){ toast('먼저 사진을 클릭해서 선택해 주세요.','err'); return; }
   const pct = ({s:'38%', m:'60%', l:'85%', f:'100%'})[sz] || '60%';
   const name = ({s:'작게', m:'보통', l:'크게', f:'꽉'})[sz] || '보통';
@@ -5033,6 +5299,8 @@ function imgAlign(al){
 function cleanHTML(h){
   return String(h||'')
     .replace(/<p class="ph-img">[^<]*<\/p>/gi, '')   // 사진 자리 안내는 저장하지 않습니다
+    .replace(/\s+data-locked="1"/g, '')
+    .replace(/(-webkit-)?user-select:\s*none;?/gi, '')
     .replace(/(<img[^>]+src=")([^"]*?)\?t=\d+(")/gi, '$1$2$3')   // 재시도용 꼬리표 제거
     .replace(/opacity:\s*0?\.\d+;?/gi, '')                        // 잘못 남은 반투명 제거
     .replace(/(<img(?![^>]*max-width)[^>]*style=")/gi, '$1max-width:100%;')  // 칸을 넘지 않게
