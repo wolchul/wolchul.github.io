@@ -399,6 +399,8 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc:hover{border-color:var(--sky)}
 #cedit .wg .wc.sel{border:2px solid var(--sky);background:var(--sky-l)}
 #cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
+#cedit .wg .wc.file-t{outline:3px dashed var(--sky);outline-offset:-3px;background:#e6f4fc !important}
+#cedit.file-t{outline:2px dashed var(--sky);outline-offset:-2px;background:#f4fafe}
 #cedit img{cursor:grab;max-width:100%;height:auto;border-radius:6px}
 #cedit img.img-loading{opacity:.45;filter:grayscale(.3)}
 #cedit img.img-dragging{opacity:.4;outline:2px dashed var(--sky)}
@@ -617,7 +619,8 @@ input,select,textarea{font-family:inherit}
             </div>
             <div class="fg2"></div>
           </div>
-          <div class="fr">
+          <!-- 사진 배치·기사 너비: 쓰지 않아 숨김 (기존 값은 그대로 저장됩니다) -->
+          <div class="fr" style="display:none">
             <div class="fg2"><label>📐 사진 배치</label>
               <select id="elay" onchange="layPrev()">
                 <option value="default">기본 — 글 아래에 사진 모음</option>
@@ -631,7 +634,7 @@ input,select,textarea{font-family:inherit}
                 <option value="half">절반 — 한 줄에 2개씩</option>
               </select></div>
           </div>
-          <div class="fr full">
+          <div class="fr full" style="display:none">
             <div class="fg2"><label>미리보기</label>
               <div id="layPrev" class="lay-prev"></div>
             </div>
@@ -1351,8 +1354,10 @@ input,select,textarea{font-family:inherit}
         <option value="images">images (로고·배너)</option>
       </select>
       <button class="btn bo bsm" onclick="phLoad()">🔄 새로고침</button>
-      <a class="btn bp bsm" id="phUpLink" href="#" target="_blank"
-         style="text-decoration:none">⬆ 새 사진 올리기 (새 탭)</a>
+      <button class="btn bp bsm" type="button" onclick="phUpPick()">⬆ 내 컴퓨터에서 올리기</button>
+      <input type="file" id="phUpInput" accept="image/*" multiple style="display:none"
+        onchange="phUpFiles(this)">
+      <a id="phUpLink" href="#" target="_blank" style="display:none"></a>
       <span id="phmStatus" style="font-size:.75rem;color:var(--text-s)"></span>
     </div>
 
@@ -1360,8 +1365,8 @@ input,select,textarea{font-family:inherit}
       gap:9px;max-height:46vh;overflow:auto;padding:4px;background:var(--bg);border-radius:8px"></div>
 
     <div style="background:var(--sky-l);border-radius:7px;padding:9px 12px;margin-top:11px;font-size:.73rem;color:var(--navy)">
-      💡 새 사진은 <strong>새 탭</strong>에서 올린 뒤 <strong>🔄 새로고침</strong>을 누르면 목록에 나타납니다.
-      (반영까지 1~2분 걸릴 수 있습니다)
+      💡 <strong>⬆ 내 컴퓨터에서 올리기</strong>로 올린 사진은 목록 맨 앞에 바로 나타납니다. 클릭하면 글 쓰던 자리에 들어갑니다.
+      <br>사진 파일을 이 창이나 편집창의 칸에 바로 끌어다 놓아도 됩니다.
     </div>
 
     <div class="ca">
@@ -2383,12 +2388,12 @@ function initDropZone() {
   });
 }
 
-function handleFiles(files) {
+function handleFiles(files, target) {
   const imgs = files.filter(f => /^image\//.test(f.type));
   if(!imgs.length){ toast('이미지 파일만 올릴 수 있습니다.','err'); return; }
 
   if(upReady()){
-    uploadFiles(imgs);          // 자동 업로드
+    uploadFiles(imgs, target);  // 자동 업로드
     return;
   }
 
@@ -3000,15 +3005,18 @@ async function uploadOne(file, folder, tries){
 }
 
 /* 여러 장을 동시에 올립니다 (한 번에 3장씩 병렬 처리) */
-async function uploadFiles(files){
+async function uploadFiles(files, target){
   if(!upReady()){
     toast('업로드 서버가 설정되지 않았습니다. 설정 화면에서 주소와 암호를 입력해 주세요.','err');
     return;
   }
   const zone = gi('dropZone');
-  const st = document.createElement('div');
-  st.style.cssText = 'margin-top:10px;font-size:.8rem;font-weight:700;color:var(--sky)';
-  if(zone) zone.appendChild(st);
+  const bar0 = document.querySelector('.ce .ins-hint');
+  const st = document.createElement(bar0 ? 'span' : 'div');
+  st.style.cssText = bar0 ? 'font-size:.74rem;font-weight:800;color:var(--sky)'
+                          : 'margin-top:10px;font-size:.8rem;font-weight:700;color:var(--sky)';
+  if(bar0) bar0.insertBefore(st, gi('imgSel') || null);
+  else if(zone) zone.appendChild(st);
 
   const t0 = Date.now();
   let done = 0, ok = 0, fail = 0;
@@ -3032,7 +3040,18 @@ async function uploadFiles(files){
     if(i < files.length - 1) await sleep(350);   // 충돌을 피하려 살짝 쉽니다
   }
 
-  // 올린 순서대로 본문에 넣습니다
+  // 올린 순서대로 본문에 넣습니다 (끌어다 놓은 자리가 있으면 그 자리에)
+  const ed0 = gi('cedit');
+  if(target && target.startContainer && ed0 && ed0.contains(target.startContainer)){
+    lastRange = target.cloneRange();
+  }
+  if(target === 'none'){                         // 보관함에서 올린 경우: 넣지 않고 목록에만
+    phAddNew(results.filter(Boolean), files);
+    const sec0 = ((Date.now() - t0) / 1000).toFixed(1);
+    st.textContent = `✅ ${ok}장 올렸습니다. (${sec0}초)`;
+    setTimeout(() => st.remove(), 5000);
+    return;
+  }
   results.forEach((path, i) => {
     if(!path) return;
     insertImageInto(path);
@@ -3063,6 +3082,7 @@ function phOpen(e){
   if(e){ e.preventDefault(); e.stopPropagation(); }
   saveCaret();                      // 지금 커서 자리를 기억해 둡니다
   gi('phModal').classList.add('open');
+  bindPhModalDrop();
   phSyncUpLink();
   if(!gi('phmGrid').dataset.loaded) phLoad();
 }
@@ -3110,6 +3130,77 @@ async function phLoad(){
       + '❌ 목록을 불러오지 못했습니다: ' + e.message
       + '<br><span style="color:var(--text-s);font-size:.72rem">잠시 후 다시 시도해 주세요.</span></div>';
   }
+}
+
+/* 보관함 창에서 바로 올리기 */
+function phUpPick(){
+  if(!upReady()){
+    toast('업로드 서버가 설정되지 않았습니다. 사이트 설정 → 사진 자동 업로드를 확인해 주세요.','err');
+    return;
+  }
+  gi('phUpInput').click();
+}
+function phUpFiles(inp){
+  const files = [...(inp.files || [])].filter(f => /^image\//.test(f.type));
+  inp.value = '';
+  if(!files.length) return;
+  phUpload(files);
+}
+async function phUpload(files){
+  if(!upReady()){ toast('업로드 서버가 설정되지 않았습니다.','err'); return; }
+  const st = gi('phmStatus');
+  let n = 0;
+  const done = [];
+  for(const f of files){
+    st.textContent = `⏳ 올리는 중... ${n}/${files.length}`;
+    try{ done.push([await uploadOne(f, 'images/vol3'), f]); }
+    catch(e){ console.error(e); toast('❌ ' + f.name + ' : ' + e.message, 'err'); }
+    n++;
+    if(n < files.length) await sleep(350);
+  }
+  st.textContent = `✅ ${done.length}장 올렸습니다`;
+  phAddNew(done.map(d => d[0]), done.map(d => d[1]));
+  if(done.length) toast('사진을 올렸습니다. 넣을 사진을 클릭하세요.','ok');
+}
+/* 방금 올린 사진을 목록 맨 앞에 보여줍니다 (사이트 반영 전이라도 바로 보이게 내 컴퓨터 파일로 미리보기) */
+function phAddNew(paths, files){
+  const grid = gi('phmGrid'); if(!grid) return;
+  if(gi('phmFolder').value !== 'images/vol3'){ gi('phmFolder').value = 'images/vol3'; }
+  grid.querySelectorAll(':scope > div:not([data-new])').forEach(x => {
+    if(!x.querySelector('img')) x.remove();          // '사진이 없습니다' 안내 제거
+  });
+  paths.forEach((path, i) => {
+    if(!path) return;
+    const f = files && files[i];
+    const src = (f instanceof Blob) ? URL.createObjectURL(f) : path;
+    const name = path.split('/').pop();
+    const nm = name.length > 16 ? name.slice(0,14) + '…' : name;
+    const d = document.createElement('div');
+    d.dataset.new = '1';
+    d.title = name;
+    d.style.cssText = 'cursor:pointer;border:2px solid var(--sky);border-radius:7px;overflow:hidden;background:#fff;position:relative';
+    d.onclick = () => phPick(path);
+    d.innerHTML = `<span style="position:absolute;top:5px;left:5px;background:var(--sky);color:#fff;
+      font-size:.6rem;font-weight:800;border-radius:4px;padding:2px 6px">NEW</span>
+      <img src="${src}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+      <div style="font-size:.64rem;padding:4px;text-align:center;color:var(--text-s)">${nm}</div>`;
+    grid.prepend(d);
+  });
+  grid.scrollTop = 0;
+}
+/* 보관함 창에 파일을 끌어다 놓아도 올라갑니다 */
+function bindPhModalDrop(){
+  const box = gi('phModal'); if(!box || box.dataset.fd) return;
+  box.dataset.fd = '1';
+  const isFile = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  box.addEventListener('dragover', e => { if(isFile(e)){ e.preventDefault(); gi('phmGrid').style.outline = '3px dashed var(--sky)'; } });
+  box.addEventListener('dragleave', e => { if(!box.contains(e.relatedTarget)) gi('phmGrid').style.outline = ''; });
+  box.addEventListener('drop', e => {
+    if(!isFile(e)) return;
+    e.preventDefault(); gi('phmGrid').style.outline = '';
+    const files = [...e.dataTransfer.files].filter(f => /^image\//.test(f.type));
+    if(files.length) phUpload(files);
+  });
 }
 
 /* 사진을 골라 커서 자리에 넣습니다 */
@@ -4231,6 +4322,50 @@ function nodeCell(n){
   return (n && n.closest) ? n.closest('.wc') : null;
 }
 
+/* ═══════ 내 컴퓨터 사진을 편집창(표 칸)에 바로 끌어다 놓기 ═══════
+   놓은 칸에 바로 올라가고 들어갑니다. 위로 올라가 업로드할 필요가 없습니다. */
+function bindFileDrop(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.fd) return;
+  ed.dataset.fd = '1';
+  const isFile = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  const clear = () => {
+    ed.querySelectorAll('.wc.file-t').forEach(c => c.classList.remove('file-t'));
+    ed.classList.remove('file-t');
+  };
+  ed.addEventListener('dragover', e => {
+    if(!isFile(e)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    const c = e.target.closest && e.target.closest('.wc');
+    ed.querySelectorAll('.wc.file-t').forEach(x => { if(x !== c) x.classList.remove('file-t'); });
+    if(c){ c.classList.add('file-t'); ed.classList.remove('file-t'); }
+    else ed.classList.add('file-t');
+  }, true);
+  ed.addEventListener('dragleave', e => {
+    if(!isFile(e)) return;
+    if(!e.relatedTarget || !ed.contains(e.relatedTarget)) clear();
+  }, true);
+  ed.addEventListener('drop', e => {
+    if(!isFile(e)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    clear();
+    const files = [...e.dataTransfer.files].filter(f => /^image\//.test(f.type));
+    if(!files.length){ toast('사진 파일만 넣을 수 있습니다.','err'); return; }
+    const cell = e.target.closest && e.target.closest('.wc');
+    let r = null;
+    if(cell){
+      r = document.createRange(); r.selectNodeContents(cell); r.collapse(false);
+    }else if(document.caretRangeFromPoint){
+      r = document.caretRangeFromPoint(e.clientX, e.clientY);
+    }
+    if(r && !ed.contains(r.startContainer)) r = null;
+    if(r) lastRange = r.cloneRange();
+    if(selImg){ selImg.classList.remove('sel'); selImg = null; if(typeof hideHandles === 'function') hideHandles(); }
+    showInsertHint();
+    handleFiles(files, r);
+  }, true);
+}
+
 /* 칸 안의 빈 줄인지 (글자·사진 없음) */
 function isBlankBlock(el){
   if(!el || el.nodeType !== 1) return false;
@@ -4312,6 +4447,7 @@ function bindHintSticky(){
 
 function bindDeleteGuard(){
   bindImgEnter();
+  bindFileDrop();
   bindHintSticky();
   const ed = gi('cedit'); if(!ed || ed.dataset.dg) return;
   ed.dataset.dg = '1';
