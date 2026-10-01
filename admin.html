@@ -2641,10 +2641,27 @@ function insertImageInto(url){
     + ' style="width:' + w + ';height:auto;display:block;margin:10px auto;border-radius:8px">'
     + (inCell ? '' : '<p><br></p>');
 
-  if(r){
+  let cellNode = null;
+  if(inCell){
+    // 브라우저 입력기(insertHTML)는 칸 끝 위치를 '다음 칸 처음'으로 바꿔버릴 때가 있어,
+    // 표 칸에는 직접 넣습니다.
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    cellNode = tmp.firstElementChild;
+    const lr = lastRange;
+    let anchor = null, atStart = false;
+    if(lr && lr.startContainer === cell){
+      if(lr.startOffset === 0) atStart = true;
+      else anchor = cell.childNodes[lr.startOffset - 1] || null;
+    }else if(lr && cell.contains(lr.startContainer)){
+      anchor = lr.startContainer;
+      while(anchor && anchor.parentNode !== cell) anchor = anchor.parentNode;
+    }
+    if(anchor && anchor.nodeType === 1 && isBlankBlock(anchor)){ anchor.replaceWith(cellNode); }
+    else if(anchor){ anchor.after(cellNode); }
+    else if(atStart){ cell.prepend(cellNode); }
+    else { cell.appendChild(cellNode); }
+  }else if(r){
     document.execCommand('insertHTML', false, html);
-  }else if(inCell){
-    cell.insertAdjacentHTML('beforeend', html);
   }else{
     ed.focus();
     ed.insertAdjacentHTML('beforeend', html);
@@ -2659,6 +2676,14 @@ function insertImageInto(url){
     fresh.classList.add('sel');
     selImg = fresh;
     tidyCell(fresh.closest('.wc'));
+  }
+  if(cellNode && cellNode.parentNode){
+    // 다음 사진은 이 사진 바로 뒤에 — 같은 칸 안에 기억해 둡니다
+    const nr = document.createRange();
+    nr.setStartAfter(cellNode); nr.collapse(true);
+    lastRange = nr;
+    bindGrid(); showInsertHint(); syncSrc();
+    return;
   }
   bindGrid(); saveCaret(); showInsertHint(); syncSrc();
 }
@@ -3222,7 +3247,7 @@ function phAddNew(paths, files){
 function bindPhModalDrop(){
   const box = gi('phModal'); if(!box || box.dataset.fd) return;
   box.dataset.fd = '1';
-  const isFile = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  const isFile = e => !pageDrag && e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
   box.addEventListener('dragover', e => { if(isFile(e)){ e.preventDefault(); gi('phmGrid').style.outline = '3px dashed var(--sky)'; } });
   box.addEventListener('dragleave', e => { if(!box.contains(e.relatedTarget)) gi('phmGrid').style.outline = ''; });
   box.addEventListener('drop', e => {
@@ -4430,10 +4455,14 @@ function bindImgMove(){
 
 /* ═══════ 내 컴퓨터 사진을 편집창(표 칸)에 바로 끌어다 놓기 ═══════
    놓은 칸에 바로 올라가고 들어갑니다. 위로 올라가 업로드할 필요가 없습니다. */
+let pageDrag = false;     // 편집창 안의 사진을 끄는 중인지 (바깥 파일과 구분)
+document.addEventListener('dragstart', () => { pageDrag = true; }, true);
+document.addEventListener('dragend', () => { pageDrag = false; }, true);
+document.addEventListener('drop', () => { setTimeout(() => { pageDrag = false; }, 0); }, true);
 function bindFileDrop(){
   const ed = gi('cedit'); if(!ed || ed.dataset.fd) return;
   ed.dataset.fd = '1';
-  const isFile = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  const isFile = e => !pageDrag && e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
   const clear = () => {
     ed.querySelectorAll('.wc.file-t').forEach(c => c.classList.remove('file-t'));
     ed.classList.remove('file-t');
