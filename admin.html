@@ -4501,6 +4501,14 @@ function bindFileDrop(){
   }, true);
 }
 
+/* 사진 선택 풀기 */
+function imgUnselect(){
+  if(selImg) selImg.classList.remove('sel');
+  selImg = null;
+  if(typeof hideHandles === 'function') hideHandles();
+  const st = gi('imgSel'); if(st) st.textContent = '';
+}
+
 /* 칸 안의 빈 줄인지 (글자·사진 없음) */
 function isBlankBlock(el){
   if(!el || el.nodeType !== 1) return false;
@@ -4556,6 +4564,9 @@ function tidyCell(cell){
 function bindImgEnter(){
   const ed = gi('cedit'); if(!ed || ed.dataset.ie) return;
   ed.dataset.ie = '1';
+  ed.addEventListener('keydown', e => {
+    if(selImg && /^(Arrow|Home$|End$|Page|Tab$)/.test(e.key)) imgUnselect();
+  }, true);
   ed.addEventListener('keydown', e => {
     if(e.key !== 'Enter' || !selImg || !ed.contains(selImg)) return;
     e.preventDefault();
@@ -4625,6 +4636,8 @@ function bindDeleteGuard(){
   window.addEventListener('blur', () => { unlockCells(); dragCell = null; });
   ed.addEventListener('mousedown', e => {
     unlockCells();
+    // 사진이 아닌 곳(글자·다른 칸)을 누르면 사진 선택을 풉니다
+    if(selImg && e.target !== selImg && e.target.tagName !== 'IMG' && !moveImg) imgUnselect();
     dragCell = nodeCell(e.target);
     if(dragCell) lockOtherCells(dragCell);
     else unlockCells();
@@ -4680,6 +4693,18 @@ function bindDeleteGuard(){
     if(e.key !== 'Delete' && e.key !== 'Backspace') return;
 
     // ① 사진을 고른 상태면 사진만 지웁니다
+    //    (단, 커서가 다른 칸이나 글자 안에 있으면 그건 글자 지우기입니다)
+    if(selImg && ed.contains(selImg)){
+      const s0 = window.getSelection();
+      if(s0 && s0.rangeCount){
+        const r0 = s0.getRangeAt(0);
+        const away = ed.contains(r0.startContainer) && (
+          !r0.collapsed ||
+          nodeCell(r0.startContainer) !== selImg.closest('.wc') ||
+          (r0.startContainer.nodeType === 3 && r0.startContainer.textContent.trim()));
+        if(away) imgUnselect();
+      }
+    }
     if(selImg && ed.contains(selImg)){
       e.preventDefault();
       if(typeof pushUndo === 'function') pushUndo();
