@@ -401,6 +401,8 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc.drop{border:2px dashed var(--navy);background:#eef6fb}
 #cedit .wg .wc.file-t{outline:3px dashed var(--sky);outline-offset:-3px;background:#e6f4fc !important}
 #cedit.file-t{outline:2px dashed var(--sky);outline-offset:-2px;background:#f4fafe}
+#cedit.move-mode .wg .wc{cursor:copy}
+#cedit.move-mode .wg .wc:hover{outline:3px dashed var(--sky);outline-offset:-3px;background:#e6f4fc}
 #cedit img{cursor:grab;max-width:100%;height:auto;border-radius:6px}
 #cedit img.img-loading{opacity:.45;filter:grayscale(.3)}
 #cedit img.img-dragging{opacity:.4;outline:2px dashed var(--sky)}
@@ -736,6 +738,8 @@ input,select,textarea{font-family:inherit}
                     <button onclick="imgSizeDlg()" type="button" title="사진 크기를 숫자로 지정">📐 크기 입력</button>
                     <button onclick="fitDlg()" type="button" title="여러 사진 크기를 똑같이 맞추기"
                       style="border-color:var(--sky);color:var(--sky);font-weight:800">▭ 크기 통일</button>
+                    <button onclick="imgMoveStart()" type="button" title="사진을 클릭하고 누른 뒤, 옮길 칸을 클릭하세요"
+                      style="border-color:var(--sky);color:var(--sky);font-weight:800">✥ 옮기기</button>
                     <button onclick="imgAlign('left')" type="button" title="왼쪽 정렬">◧</button>
                     <button onclick="imgAlign('center')" type="button" title="가운데">▣</button>
                     <button onclick="imgAlign('right')" type="button" title="오른쪽">◨</button>
@@ -2439,6 +2443,9 @@ function insertImgUrl(){
 function insertImg(){ insertImgUrl(); }
 
 async function saveArt(){
+  if(gi('cedit') && gi('cedit').querySelector('img[data-up]')){
+    toast('사진을 아직 올리는 중입니다. 잠시 후 저장해 주세요.','err'); return;
+  }
   const title=gi('etti').value.trim(), summary=gi('esum').value.trim();
   hideHandles(); hideColBars();
   if(typeof unlockCells === 'function') unlockCells();
@@ -2555,6 +2562,23 @@ function showInsertHint(){
   const c = caretCell();
   el.textContent = c ? '📍 삽입 위치: 표 칸 안' : '📍 삽입 위치: 본문 (표 밖)';
   el.style.color = c ? 'var(--sky)' : 'var(--text-s)';
+}
+
+/* 미리보기(내 컴퓨터 사진)로 보이던 사진을, 사이트에 반영되면 실제 주소로 바꿉니다 */
+function swapWhenLive(im){
+  const real = im.getAttribute('data-real'); if(!real) return;
+  let n = 0;
+  const tryOnce = () => {
+    if(!document.body.contains(im) || im.getAttribute('data-real') !== real) return;
+    const probe = new Image();
+    probe.onload = () => {
+      if(im.getAttribute('data-real') !== real) return;
+      im.setAttribute('src', real); im.removeAttribute('data-real'); syncSrc();
+    };
+    probe.onerror = () => { if(n++ < 40) setTimeout(tryOnce, 6000); };
+    probe.src = real + '?probe=' + Date.now();
+  };
+  setTimeout(tryOnce, 4000);
 }
 
 /* GitHub 반영에 1~2분 걸릴 수 있어, 사진이 안 뜨면 자동으로 다시 불러옵니다 */
@@ -3027,36 +3051,42 @@ async function uploadFiles(files, target){
   };
   upd();
 
-  // GitHub 은 동시에 쓰면 충돌하므로 한 장씩 차례로 올립니다
-  for(let i = 0; i < files.length; i++){
-    try{
-      results[i] = await uploadOne(files[i], 'images/vol3');
-      ok++;
-    }catch(e){
-      console.error(e); fail++;
-      toast('❌ ' + files[i].name + ' : ' + e.message, 'err');
-    }
-    done++; upd();
-    if(i < files.length - 1) await sleep(350);   // 충돌을 피하려 살짝 쉽니다
-  }
-
-  // 올린 순서대로 본문에 넣습니다 (끌어다 놓은 자리가 있으면 그 자리에)
+  // ① 올리기 전에, 지금 자리에 내 컴퓨터 사진으로 미리 넣어 둡니다.
+  //    올리는 동안 다른 칸을 눌러도 사진은 처음 자리에 그대로 있습니다.
   const ed0 = gi('cedit');
   if(target && target.startContainer && ed0 && ed0.contains(target.startContainer)){
     lastRange = target.cloneRange();
   }
-  if(target === 'none'){                         // 보관함에서 올린 경우: 넣지 않고 목록에만
-    phAddNew(results.filter(Boolean), files);
-    const sec0 = ((Date.now() - t0) / 1000).toFixed(1);
-    st.textContent = `✅ ${ok}장 올렸습니다. (${sec0}초)`;
-    setTimeout(() => st.remove(), 5000);
-    return;
-  }
-  results.forEach((path, i) => {
-    if(!path) return;
-    insertImageInto(path);
-    addPreview(path, files[i].name);
+  const holders = files.map(f => {
+    const blob = URL.createObjectURL(f);
+    insertImageInto(blob);
+    const im = ed0 && [...ed0.querySelectorAll('img')].find(x => x.getAttribute('src') === blob);
+    if(im){ im.dataset.up = '1'; im.classList.add('img-loading'); }
+    return im;
   });
+
+  // ② GitHub 은 동시에 쓰면 충돌하므로 한 장씩 차례로 올립니다
+  for(let i = 0; i < files.length; i++){
+    try{
+      results[i] = await uploadOne(files[i], 'images/vol3');
+      ok++;
+      const im = holders[i];
+      if(im){
+        im.setAttribute('data-real', results[i]);   // 저장할 때는 이 주소로 바뀝니다
+        delete im.dataset.up;
+        im.classList.remove('img-loading');
+        swapWhenLive(im);
+      }
+    }catch(e){
+      console.error(e); fail++;
+      toast('❌ ' + files[i].name + ' : ' + e.message, 'err');
+      if(holders[i]){ const c = holders[i].closest('.wc'); holders[i].remove(); tidyCell(c); }
+    }
+    done++; upd();
+    if(i < files.length - 1) await sleep(350);   // 충돌을 피하려 살짝 쉽니다
+  }
+  results.forEach((path, i) => { if(path) addPreview(path, files[i].name); });
+  syncSrc();
 
   const sec = ((Date.now() - t0) / 1000).toFixed(1);
   st.textContent = fail
@@ -4322,6 +4352,82 @@ function nodeCell(n){
   return (n && n.closest) ? n.closest('.wc') : null;
 }
 
+/* ═══════ 끄는 동안 자동 스크롤 ═══════
+   사진을 끌고 편집창의 위·아래 끝으로 가져가면 그쪽으로 저절로 넘어갑니다. */
+function bindDragScroll(){
+  const ce = document.querySelector('.ce'); if(!ce || ce.dataset.ds) return;
+  ce.dataset.ds = '1';
+  let y = null, raf = null, last = 0;
+  const EDGE = 70;
+  const step = () => {
+    raf = null;
+    if(y === null || Date.now() - last > 250){ y = null; return; }
+    const r = ce.getBoundingClientRect();
+    const bar = ce.querySelector('.ins-hint');
+    const top = Math.max(r.top, 0) + (bar ? bar.getBoundingClientRect().bottom - Math.max(r.top,0) : 0);
+    const bot = Math.min(r.bottom, window.innerHeight);
+    let dy = 0;
+    if(y < top + EDGE) dy = -Math.ceil((top + EDGE - y) / 4);
+    else if(y > bot - EDGE) dy = Math.ceil((y - (bot - EDGE)) / 4);
+    if(dy){
+      const before = ce.scrollTop;
+      ce.scrollTop += dy;
+      // 편집창이 끝까지 갔으면 페이지 자체를 움직입니다
+      if(ce.scrollTop === before) window.scrollBy(0, dy);
+    }
+    raf = requestAnimationFrame(step);
+  };
+  document.addEventListener('dragover', e => {
+    if(!ce.contains(e.target) && !(Math.abs(e.clientY - ce.getBoundingClientRect().bottom) < 120)) return;
+    y = e.clientY; last = Date.now();
+    if(!raf) raf = requestAnimationFrame(step);
+  }, true);
+  const stop = () => { y = null; };
+  document.addEventListener('drop', stop, true);
+  document.addEventListener('dragend', stop, true);
+}
+
+/* ═══════ 사진 옮기기 — 끌지 않고 클릭으로 ═══════
+   사진을 클릭 → [✥ 옮기기] → 옮길 칸을 클릭 (스크롤해서 멀리 있는 칸도 됩니다) */
+let moveImg = null;
+function imgMoveStart(){
+  if(!selImg){ toast('옮길 사진을 먼저 클릭해 주세요.','err'); return; }
+  moveImg = selImg;
+  moveImg.classList.add('img-dragging');
+  gi('cedit').classList.add('move-mode');
+  toast('사진을 놓을 칸을 클릭하세요. (Esc: 취소)','ok');
+}
+function imgMoveCancel(){
+  if(moveImg) moveImg.classList.remove('img-dragging');
+  moveImg = null;
+  const ed = gi('cedit'); if(ed) ed.classList.remove('move-mode');
+}
+function bindImgMove(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.mv) return;
+  ed.dataset.mv = '1';
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && moveImg){ imgMoveCancel(); toast('옮기기를 취소했습니다.','ok'); } });
+  ed.addEventListener('mousedown', e => {
+    if(!moveImg) return;
+    const cell = e.target.closest && e.target.closest('.wc');
+    if(!cell || e.target === moveImg) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if(typeof pushUndo === 'function') pushUndo();
+    const im = moveImg, from = im.closest('.wc');
+    const blk = im.closest('figure.imgtxt') || im;
+    if(!cell.textContent.trim() && !cell.querySelector('img')) cell.innerHTML = '';
+    cell.appendChild(blk);
+    im.dataset.sz = 'f'; im.style.width = '100%'; im.style.maxWidth = '100%';
+    imgMoveCancel();
+    if(from && from !== cell) tidyCell(from);
+    tidyCell(cell);
+    ed.querySelectorAll('img.sel').forEach(x => x.classList.remove('sel'));
+    im.classList.add('sel'); selImg = im;
+    bindGrid(); syncSrc();
+    if(typeof showHandles === 'function') showHandles(im);
+    toast('사진을 옮겼습니다.','ok');
+  }, true);
+}
+
 /* ═══════ 내 컴퓨터 사진을 편집창(표 칸)에 바로 끌어다 놓기 ═══════
    놓은 칸에 바로 올라가고 들어갑니다. 위로 올라가 업로드할 필요가 없습니다. */
 function bindFileDrop(){
@@ -4448,6 +4554,8 @@ function bindHintSticky(){
 function bindDeleteGuard(){
   bindImgEnter();
   bindFileDrop();
+  bindDragScroll();
+  bindImgMove();
   bindHintSticky();
   const ed = gi('cedit'); if(!ed || ed.dataset.dg) return;
   ed.dataset.dg = '1';
@@ -5690,6 +5798,9 @@ function cleanHTML(h){
   return String(h||'')
     .replace(/<p class="ph-img">[^<]*<\/p>/gi, '')   // 사진 자리 안내는 저장하지 않습니다
     .replace(/<p>\s*<\/p>/gi, '')                      // 사진 넣고 뺄 때 남은 빈 문단
+    .replace(/(<img[^>]*?)src="blob:[^"]*"([^>]*?)\s+data-real="([^"]*)"/gi, '$1src="$3"$2')
+    .replace(/\s+data-real="[^"]*"/gi, '')
+    .replace(/\s+data-watch="[^"]*"/gi, '')
     .replace(/\s+data-locked="1"/g, '')
     .replace(/(-webkit-)?user-select:\s*none;?/gi, '')
     .replace(/(<img[^>]+src=")([^"]*?)\?t=\d+(")/gi, '$1$2$3')   // 재시도용 꼬리표 제거
