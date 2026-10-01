@@ -237,7 +237,7 @@ input,select,textarea{font-family:inherit}
 }
 .ins-hint{display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:.72rem;
   color:var(--text-s);background:#f7f9fb;border-bottom:1px solid var(--border);
-  position:sticky;top:36px;z-index:4}
+  position:sticky;top:var(--ct-h,36px);z-index:6}
 /* 본문 편집창 — 길어지면 이 안에서 스크롤됩니다 */
 .ce{max-height:620px;overflow-y:auto;overflow-x:hidden;resize:vertical}
 .ce::-webkit-scrollbar{width:11px}
@@ -392,7 +392,7 @@ input,select,textarea{font-family:inherit}
 #cedit .wg .wc[data-va="flex-end"]{justify-content:flex-end}
 #cedit .wg .wc > *:first-child{margin-top:0}
 #cedit .wg .wc > *:last-child{margin-bottom:0}
-#cedit .wg .wc p:empty::before{content:'내용을 입력하세요';color:#c2cad2;font-size:.78rem}
+#cedit .wg .wc > p:only-child:empty::before{content:'내용을 입력하세요';color:#c2cad2;font-size:.78rem}
 /* 한글에서 가져온 사진 자리 */
 #cedit .ph-img{background:#fff6e5;border:1.5px dashed #e0a33a;border-radius:7px;
   padding:14px 10px;text-align:center;color:#a5720f;font-size:.79rem;font-weight:700;margin:0}
@@ -747,11 +747,11 @@ input,select,textarea{font-family:inherit}
                     <button onclick="toggleSelMode()" type="button" id="selModeBtn"
                       title="켜면 마우스로 끌어서 여러 칸을 고르고, 칸 내용을 옮길 수 있습니다">▤ 칸 선택</button>
                     <button onclick="rowAdd()" type="button" title="선택한 줄 아래에 한 줄 추가">＋줄</button>
-                    <button onclick="rowDel()" type="button" title="선택한 칸이 있는 줄 전체 삭제">－줄</button>
+                    <button onclick="rowDel()" type="button" title="선택한 칸이 있는 가로줄 전체 삭제">－가로줄</button>
+                    <button onclick="colDel()" type="button" title="선택한 칸이 있는 세로줄 전체 삭제">－세로줄</button>
                     <button onclick="colAdd()" type="button" title="가로 칸 하나 늘리기">＋칸</button>
                     <button onclick="splitDlg()" type="button" title="칸·줄·표를 나누는 방법 고르기">⊟ 나누기</button>
                     <button onclick="cellMergeSel()" type="button" title="Ctrl+클릭으로 고른 칸들을 하나로 합치기">⊡ 합치기</button>
-                    <button onclick="cellDel()" type="button" title="선택한 칸 자체를 없애기">⊗ 칸 삭제</button>
                     <button onclick="cellMerge(1)" type="button" title="선택한 칸을 옆으로 넓히기">⇥</button>
                     <button onclick="cellMerge(-1)" type="button" title="넓힌 칸 되돌리기">⇤</button>
                     <button onclick="cellClear()" type="button" title="선택한 칸 내용 비우기">칸 비우기</button>
@@ -2610,7 +2610,7 @@ function insertImageInto(url){
   const html = '<img src="' + url.replace(/"/g,'&quot;') + '" alt="기사 사진" data-new="1"'
     + ' data-sz="' + (inCell ? 'f' : 'm') + '" data-al="center"'
     + ' style="width:' + w + ';height:auto;display:block;margin:10px auto;border-radius:8px">'
-    + '<p><br></p>';
+    + (inCell ? '' : '<p><br></p>');
 
   if(r){
     document.execCommand('insertHTML', false, html);
@@ -2629,6 +2629,7 @@ function insertImageInto(url){
     ed.querySelectorAll('img').forEach(x => x.classList.remove('sel'));
     fresh.classList.add('sel');
     selImg = fresh;
+    tidyCell(fresh.closest('.wc'));
   }
   bindGrid(); saveCaret(); showInsertHint(); syncSrc();
 }
@@ -2739,16 +2740,111 @@ function colAdd(){
 
 function cellClear(){ cellsClear(); }
 
+/* 세로줄 삭제 — 한글처럼 표 위에서 아래까지 한 줄을 통째로 지웁니다 */
+function colDel(){
+  if(!selCell){ toast('지울 세로줄의 칸을 먼저 클릭해 주세요.','err'); return; }
+  const info = cellRowInfo(selCell); if(!info || info.row == null) return;
+  const g = info.grid, cols = info.cols, fine = g.dataset.fine === '1';
+  const spanOf = c => Math.min(parseInt(c.dataset.span) || 1, cols);
+  const setSpan = (c, sp) => {
+    if(sp > 1){ c.dataset.span = sp; c.style.gridColumn = 'span ' + sp; }
+    else { delete c.dataset.span; c.style.gridColumn = ''; }
+  };
+  // 고른 칸의 가로 위치
+  let x = 0;
+  for(const c of info.rows[info.row]){ if(c === selCell) break; x += spanOf(c); }
+  const w = spanOf(selCell);
+
+  if(!fine && cols <= 1){ toast('마지막 세로줄은 지울 수 없습니다. 표 삭제를 사용해 주세요.','err'); return; }
+  if(fine && info.rows.every(r => r.length <= 1)){
+    toast('마지막 세로줄은 지울 수 없습니다. 표 삭제를 사용해 주세요.','err'); return;
+  }
+  if(!confirm('이 세로줄을 지울까요? 그 줄의 내용도 함께 지워집니다.')) return;
+  if(typeof pushUndo === 'function') pushUndo();
+
+  if(!fine){
+    // 칸 단위 표: 그 세로줄에 걸친 칸을 지우고, 여러 칸에 걸친(합친) 칸은 한 칸만 줄입니다
+    info.rows.forEach(r => {
+      let p = 0;
+      for(const c of r){
+        const sp = spanOf(c);
+        if(x >= p && x < p + sp){ sp > 1 ? setSpan(c, sp - 1) : c.remove(); break; }
+        p += sp;
+      }
+    });
+    const nc = cols - 1;
+    g.dataset.cols = nc;
+    if(g.dataset.fr){
+      const fr = g.dataset.fr.split(',');
+      fr.splice(x, 1);
+      g.dataset.fr = fr.join(',');
+      g.style.gridTemplateColumns = fr.map(v => 'minmax(0,' + v + 'fr)').join(' ');
+    }else{
+      g.style.gridTemplateColumns = `repeat(${nc},minmax(0,1fr))`;
+    }
+  }else{
+    // 한글에서 붙여넣은 표: 같은 세로 위치의 칸을 지우고 남은 칸을 넓혀 폭을 맞춥니다
+    const mid = x + w / 2;
+    info.rows.forEach(r => {
+      if(r.length <= 1) return;
+      let p = 0, hit = null;
+      for(const c of r){
+        const sp = spanOf(c);
+        if(mid >= p && mid < p + sp){ hit = c; break; }
+        p += sp;
+      }
+      if(!hit) return;
+      const hs = spanOf(hit);
+      const overlap = Math.max(0, Math.min(p + hs, x + w) - Math.max(p, x));
+      if(overlap / hs < 0.5) return;       // 여러 칸을 합친 넓은 칸은 그대로 둡니다
+      hit.remove();
+      const rest = r.filter(c => c !== hit);
+      const tot = rest.reduce((a, c) => a + spanOf(c), 0);
+      let used = 0;
+      rest.forEach((c, i) => {
+        const sp = (i === rest.length - 1) ? cols - used
+          : Math.max(1, Math.round(spanOf(c) * cols / tot));
+        setSpan(c, sp); used += sp;
+      });
+    });
+  }
+  clearMulti && clearMulti(); selCell = null; selImg = null;
+  bindGrid(); repairGrids(); syncSrc();
+  toast('세로줄을 지웠습니다.','ok');
+}
+
 /* 칸 넓히기 / 좁히기 (한글의 셀 병합처럼) */
 function cellMerge(delta){
   if(typeof pushUndo === 'function') pushUndo();
   if(!selCell){ toast('칸을 먼저 클릭해 주세요.','err'); return; }
   const info = cellRowInfo(selCell); if(!info) return;
-  let sp = (parseInt(selCell.dataset.span) || 1) + delta;
-  sp = Math.min(Math.max(sp, 1), info.cols);
-  if(sp === 1){ delete selCell.dataset.span; selCell.style.gridColumn = ''; }
-  else { selCell.dataset.span = sp; selCell.style.gridColumn = 'span ' + sp; }
-  syncSrc();
+  const cur = parseInt(selCell.dataset.span) || 1;
+  const setSp = (c, v) => { if(v > 1){ c.dataset.span = v; c.style.gridColumn = 'span ' + v; }
+                            else { delete c.dataset.span; c.style.gridColumn = ''; } };
+  let sp = cur;
+  if(delta > 0){
+    const row = info.rows[info.row] || [];
+    const nx = row[row.indexOf(selCell) + 1];
+    if(!nx){ toast('오른쪽에 합칠 칸이 없습니다.','err'); return; }
+    const ns = parseInt(nx.dataset.span) || 1;
+    if(ns > 1) setSp(nx, ns - 1);
+    else {
+      // 옆 칸 내용은 이 칸으로 옮겨 합칩니다
+      if(nx.textContent.trim() || nx.querySelector('img'))
+        [...nx.childNodes].forEach(n => selCell.appendChild(n));
+      nx.remove();
+      tidyCell(selCell);
+    }
+    sp = cur + 1;
+  }else{
+    if(cur <= 1){ toast('이미 한 칸 너비입니다.','err'); return; }
+    sp = cur - 1;
+    const nc = document.createElement('div');
+    nc.className = 'wc'; nc.innerHTML = '<p><br></p>';
+    selCell.after(nc);
+  }
+  setSp(selCell, sp);
+  bindGrid(); syncSrc();
   toast(sp === 1 ? '칸을 원래 너비로 되돌렸습니다.' : ('칸을 '+sp+'칸 너비로 넓혔습니다.'),'ok');
 }
 
@@ -3979,7 +4075,8 @@ function tableSplit(){
 }
 
 /* 칸 자체를 없앱니다 (남은 칸이 그 자리를 채웁니다) */
-function cellDel(){
+function cellDel(){ return colDel(); }
+function cellDelOld(){
   if(typeof pushUndo === 'function') pushUndo();
   const list = cellsSelected();
   if(!list.length){ toast('없앨 칸을 먼저 클릭해 주세요.','err'); return; }
@@ -4134,15 +4231,127 @@ function nodeCell(n){
   return (n && n.closest) ? n.closest('.wc') : null;
 }
 
+/* 칸 안의 빈 줄인지 (글자·사진 없음) */
+function isBlankBlock(el){
+  if(!el || el.nodeType !== 1) return false;
+  if(!/^(P|DIV|H[1-6]|BLOCKQUOTE)$/.test(el.tagName) || el.classList.contains('ph-img')) return false;
+  if(el.textContent.replace(/\u200b/g,'').trim()) return false;
+  return !el.querySelector('img,figure,hr,iframe,video,.ph-img,table,.wg');
+}
+function caretIn(el){
+  const sel = window.getSelection(); if(!sel || !el) return;
+  const rg = document.createRange(); rg.selectNodeContents(el); rg.collapse(true);
+  sel.removeAllRanges(); sel.addRange(rg);
+}
+function caretAfter(el){
+  const sel = window.getSelection(); if(!sel || !el) return;
+  const rg = document.createRange();
+  if(el.tagName === 'IMG' || el.tagName === 'FIGURE' || el.querySelector('img') && !el.textContent.trim()){
+    rg.setStartAfter(el.tagName === 'P' ? el.lastChild || el : el);
+  }else{ rg.selectNodeContents(el); rg.collapse(false); }
+  rg.collapse(true); sel.removeAllRanges(); sel.addRange(rg);
+}
+function caretBefore(el){
+  const sel = window.getSelection(); if(!sel || !el) return;
+  const rg = document.createRange();
+  if(el.tagName === 'IMG' || el.tagName === 'FIGURE') rg.setStartBefore(el);
+  else { rg.selectNodeContents(el); rg.collapse(true); }
+  rg.collapse(true); sel.removeAllRanges(); sel.addRange(rg);
+}
+/* 사진을 넣거나 빼고 난 칸 정리 — 남은 빈 줄과 '내용을 입력하세요' 찌꺼기를 없앱니다 */
+function tidyCell(cell){
+  if(!cell || !cell.classList || !cell.classList.contains('wc')) return;
+  [...cell.childNodes].forEach(x => { if(x.nodeType === 3 && !x.textContent.trim()) x.remove(); });
+  const kids = () => [...cell.children];
+  const hasReal = kids().some(c => !isBlankBlock(c))
+    || [...cell.childNodes].some(x => x.nodeType === 3 && x.textContent.trim());
+  if(!hasReal){ cell.innerHTML = '<p><br></p>'; return; }
+  const isPic = el => el && (el.tagName === 'IMG' || el.tagName === 'FIGURE'
+    || (el.querySelector && el.querySelector('img') && !el.textContent.trim()));
+  // 맨 앞·맨 뒤의 빈 줄
+  while(isBlankBlock(cell.firstElementChild) && cell.firstElementChild !== cell.lastElementChild) cell.firstElementChild.remove();
+  while(isBlankBlock(cell.lastElementChild) && cell.firstElementChild !== cell.lastElementChild) cell.lastElementChild.remove();
+  // 사진 바로 위·아래 빈 줄
+  kids().forEach(c => {
+    if(isBlankBlock(c) && (isPic(c.previousElementSibling) || isPic(c.nextElementSibling))) c.remove();
+  });
+  // 사진만 든 문단 안의 쓸데없는 줄바꿈
+  kids().forEach(c => {
+    if(c.tagName === 'P' && c.querySelector('img') && !c.textContent.trim())
+      c.querySelectorAll('br').forEach(b => b.remove());
+  });
+}
+
+/* 사진을 고른 채 Enter → 사진 아래에 글 쓸 줄을 만듭니다 */
+function bindImgEnter(){
+  const ed = gi('cedit'); if(!ed || ed.dataset.ie) return;
+  ed.dataset.ie = '1';
+  ed.addEventListener('keydown', e => {
+    if(e.key !== 'Enter' || !selImg || !ed.contains(selImg)) return;
+    e.preventDefault();
+    if(typeof pushUndo === 'function') pushUndo();
+    let blk = selImg.closest('figure.imgtxt') || selImg;
+    if(blk.parentElement && blk.parentElement.tagName === 'P' && !blk.parentElement.textContent.trim()) blk = blk.parentElement;
+    const p = document.createElement('p'); p.innerHTML = '<br>';
+    if(e.shiftKey) blk.before(p); else blk.after(p);
+    selImg.classList.remove('sel'); selImg = null; hideHandles();
+    caretIn(p); saveCaret(); syncSrc();
+  }, true);
+}
+
+/* 도구 모음 높이에 맞춰 '사진 보관함' 줄을 바로 아래에 붙여 둡니다 */
+function bindHintSticky(){
+  const ct = document.querySelector('.ce .ct'), ce = document.querySelector('.ce');
+  if(!ct || !ce || ce.dataset.hs) return;
+  ce.dataset.hs = '1';
+  const set = () => ce.style.setProperty('--ct-h', ct.offsetHeight + 'px');
+  set();
+  if(window.ResizeObserver) new ResizeObserver(set).observe(ct);
+  else window.addEventListener('resize', set);
+}
+
 function bindDeleteGuard(){
+  bindImgEnter();
+  bindHintSticky();
   const ed = gi('cedit'); if(!ed || ed.dataset.dg) return;
   ed.dataset.dg = '1';
+
+  /* ── 한글처럼 표 칸은 하나씩 지워지지 않습니다 ──
+     지우기·잘라내기·끌어놓기 직전 상태를 잠시 기억했다가,
+     그 결과로 칸이나 표가 줄었으면 바로 되돌립니다. */
+  let snap = null;
+  const counts = () => [ed.querySelectorAll('.wg > .wc').length, ed.querySelectorAll('.wg').length];
+  const arm = () => {
+    if(snap) return;
+    snap = { html: ed.innerHTML, n: counts() };
+    setTimeout(() => {
+      const s0 = snap; snap = null; if(!s0) return;
+      const n = counts();
+      if(n[0] < s0.n[0] || n[1] < s0.n[1]){
+        ed.innerHTML = s0.html;
+        selCell = null; selImg = null;
+        if(typeof hideHandles === 'function') hideHandles();
+        bindGrid(); syncSrc();
+        toast('표 칸은 하나씩 지울 수 없습니다. －가로줄 / －세로줄 / ▨ 표 삭제를 쓰세요.','err');
+      }
+    }, 0);
+  };
+  ed.addEventListener('keydown', e => { if(e.key === 'Delete' || e.key === 'Backspace') arm(); }, true);
+  ed.addEventListener('beforeinput', e => {
+    const sel = window.getSelection();
+    if(/^delete/.test(e.inputType || '') || (sel && !sel.isCollapsed)) arm();
+  }, true);
+  ed.addEventListener('cut', arm, true);
+  ed.addEventListener('drop', arm, true);
+  ed.addEventListener('dragend', arm, true);
 
   /* ── 한글 표처럼, 선택이 칸을 아예 못 넘어가게 합니다 ──
      마우스를 누른 칸을 기억해 두고, 끄는 동안 그 칸 밖은 잠가 둡니다. */
   let dragCell = null;
 
+  window.addEventListener('blur', () => { unlockCells(); dragCell = null; });
   ed.addEventListener('mousedown', e => {
+    unlockCells();
     dragCell = nodeCell(e.target);
     if(dragCell) lockOtherCells(dragCell);
     else unlockCells();
@@ -4206,7 +4415,7 @@ function bindDeleteGuard(){
       (fig || selImg).remove();
       hideHandles();
       selImg = null;
-      if(cell && !cell.innerHTML.trim()) cell.innerHTML = '<p><br></p>';
+      tidyCell(cell);
       const st = gi('imgSel'); if(st) st.textContent = '';
       syncSrc();
       toast('사진을 지웠습니다.','ok');
@@ -4263,11 +4472,48 @@ function bindDeleteGuard(){
     const cell = n && n.closest ? n.closest('.wc') : null;
     if(cell && r.collapsed){
       const empty = !cell.textContent.trim() && !cell.querySelector('img');
-      const atStart = r.startOffset === 0;
-      if(empty || (e.key === 'Backspace' && atStart)){
+      if(empty){
         e.preventDefault();
-        if(!empty) return;
+        if(cell.children.length !== 1 || !isBlankBlock(cell.firstElementChild)){
+          if(typeof pushUndo === 'function') pushUndo();
+          cell.innerHTML = '<p><br></p>'; caretIn(cell.firstChild); syncSrc();
+        }
         toast('빈 칸입니다. 칸을 없애려면 －줄 이나 ⊡ 합치기를 쓰세요.','err');
+        return;
+      }
+      // 커서 앞·뒤에 칸 안 내용이 남았는지 (글자·사진)
+      const side = (a, b) => {
+        const rg = document.createRange();
+        try{ rg.setStart(a[0], a[1]); rg.setEnd(b[0], b[1]); }catch(_){ return true; }
+        if(rg.toString().replace(/\u200b/g,'').length) return true;
+        const f = rg.cloneContents();
+        return !!(f.querySelector && f.querySelector('img,figure,hr,iframe,video,.ph-img'));
+      };
+      const atStart = !side([cell,0], [r.startContainer, r.startOffset]);
+      const atEnd   = !side([r.endContainer, r.endOffset], [cell, cell.childNodes.length]);
+
+      // 지금 커서가 있는 줄 (칸 바로 아래 단계)
+      let line = n;
+      while(line && line.parentElement !== cell) line = line.parentElement;
+      if(line === cell) line = null;
+      const lineBlank = line && isBlankBlock(line);
+
+      // 빈 줄(사진 아래 여백 등)에서 지우기 → 그 줄만 없앱니다
+      if(lineBlank && cell.children.length > 1){
+        e.preventDefault();
+        if(typeof pushUndo === 'function') pushUndo();
+        const prev = line.previousElementSibling, next = line.nextElementSibling;
+        line.remove();
+        if(e.key === 'Backspace' && prev) caretAfter(prev);
+        else if(next) caretBefore(next);
+        else if(prev) caretAfter(prev);
+        saveCaret(); syncSrc();
+        return;
+      }
+      // 칸의 맨 처음에서 ←지우기, 맨 끝에서 Delete → 옆 칸을 건드리지 않게 막습니다
+      if((e.key === 'Backspace' && atStart) || (e.key === 'Delete' && atEnd)){
+        e.preventDefault();
+        return;
       }
       return;
     }
@@ -4348,11 +4594,11 @@ function bindImgDrag(){
     e.preventDefault();
     if(typeof pushUndo === 'function') pushUndo();
     const cell = e.target.closest && e.target.closest('.wc');
+    const fromCell = selImg.closest('.wc');
 
     if(cell){
       if(!cell.textContent.trim() && !cell.querySelector('img')) cell.innerHTML = '';
       cell.appendChild(selImg);
-      if(!cell.querySelector('p')) cell.insertAdjacentHTML('beforeend','<p><br></p>');
       selImg.dataset.sz = 'f';
       selImg.style.width = '100%';
       selImg.style.maxWidth = '100%';
@@ -4370,6 +4616,8 @@ function bindImgDrag(){
     }
 
     clearMark();
+    if(fromCell && fromCell !== cell) tidyCell(fromCell);
+    if(cell) tidyCell(cell);
     bindGrid(); syncSrc();
     if(rzTarget === selImg) placeHandles(); else showHandles(selImg);
     toast('사진을 옮겼습니다.','ok');
@@ -4925,21 +5173,27 @@ function repairGrids(){
         fixed++;
       }
     });
-    // 줄 너비를 따로 정한 표(60칸 바탕)는 줄 채우기 검사를 건너뜁니다
-    if(g.dataset.fine === '1') return;
-
-    // 마지막 줄이 덜 찼으면 빈 칸을 채워 모양을 맞춥니다
-    let used = 0;
-    cells.forEach(c => { used += parseInt(c.dataset.span) || 1; });
-    const rest = used % cols;
-    if(rest !== 0){
-      for(let i = rest; i < cols; i++){
+    // 빈 구멍 채우기 — 칸이 줄 끝에 다 안 들어가 다음 줄로 밀리면
+    // 그 자리가 클릭도 안 되는 빈 공간으로 남습니다. 거기에 빈 칸을 넣습니다.
+    const fine = g.dataset.fine === '1';
+    const fill = (before, n) => {
+      const mk = sp => {
         const nc = document.createElement('div');
         nc.className = 'wc'; nc.innerHTML = '<p><br></p>';
-        g.appendChild(nc);
-      }
+        if(sp > 1){ nc.dataset.span = sp; nc.style.gridColumn = 'span ' + sp; }
+        return nc;
+      };
+      const list = fine ? [mk(n)] : Array.from({length:n}, () => mk(1));
+      list.forEach(nc => before ? before.before(nc) : g.appendChild(nc));
       fixed++;
-    }
+    };
+    let pos = 0;
+    cells.forEach(c => {
+      const sp = Math.min(parseInt(c.dataset.span) || 1, cols);
+      if(pos > 0 && pos + sp > cols){ fill(c, cols - pos); pos = 0; }
+      pos = (pos + sp) % cols;
+    });
+    if(pos > 0) fill(null, cols - pos);
     // 칸이 하나도 없으면 표 자체를 제거
     if(!g.querySelector(':scope > .wc')){ g.remove(); fixed++; }
   });
@@ -5299,6 +5553,7 @@ function imgAlign(al){
 function cleanHTML(h){
   return String(h||'')
     .replace(/<p class="ph-img">[^<]*<\/p>/gi, '')   // 사진 자리 안내는 저장하지 않습니다
+    .replace(/<p>\s*<\/p>/gi, '')                      // 사진 넣고 뺄 때 남은 빈 문단
     .replace(/\s+data-locked="1"/g, '')
     .replace(/(-webkit-)?user-select:\s*none;?/gi, '')
     .replace(/(<img[^>]+src=")([^"]*?)\?t=\d+(")/gi, '$1$2$3')   // 재시도용 꼬리표 제거
