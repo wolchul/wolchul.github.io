@@ -969,7 +969,7 @@ input,select,textarea{font-family:inherit}
             <div class="dz-tag" id="dzTag">VOL. 3호 · 2026년 상반기 소식지</div>
             <div class="dz-h1">장애인과 함께<br>걷는 <span id="dzAcc">따뜻한 길</span></div>
             <div class="dz-desc">사회복지법인 전남밀알복지재단 영암군장애인종합복지관의<br>소식과 이야기를 담은 웹진입니다.</div>
-            <div class="dz-btns"><span class="dz-b1">기사 보기</span><span class="dz-b2">후원 신청 →</span></div>
+            <div class="dz-btns"><span class="dz-b2" style="background:var(--orange,#f77f00);border-color:transparent;border-radius:30px;font-weight:800">♥ 후원 신청하기 →</span></div>
           </div>
         </div>
 
@@ -1011,9 +1011,22 @@ input,select,textarea{font-family:inherit}
               </p>
             </div>
             <div class="sf" style="margin-top:12px">
-              <label>사진 어둡게 <span id="dzDimV" style="color:var(--text-s);font-weight:400">55%</span>
-                <small style="color:var(--text-s);font-weight:400">— 글씨가 잘 보이도록</small></label>
-              <input type="range" id="dzDim" min="0" max="90" value="55" oninput="dzPreview()" style="width:100%">
+              <label>사진 위치 <span id="dzPosV" style="color:var(--text-s);font-weight:400">70%</span>
+                <small style="color:var(--text-s);font-weight:400">— 왼쪽은 사진 위쪽, 오른쪽으로 갈수록 아래쪽을 보여줍니다</small></label>
+              <input type="range" id="dzPos" min="0" max="100" value="70" oninput="dzPreview()" style="width:100%">
+            </div>
+            <div class="sf" style="margin-top:12px">
+              <label>왼쪽 덮는 색</label>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <input type="color" id="dzTint" oninput="gi('dzTintSame').checked=false;dzPreview()" style="width:52px;height:34px;padding:2px">
+                <label style="display:flex;align-items:center;gap:5px;font-weight:600;font-size:.76rem;margin:0">
+                  <input type="checkbox" id="dzTintSame" onchange="dzPreview()" checked> 색상 테마의 ‘가장 진한색’과 같게</label>
+              </div>
+            </div>
+            <div class="sf" style="margin-top:12px">
+              <label>덮는 색 진하기 <span id="dzDimV" style="color:var(--text-s);font-weight:400">92%</span>
+                <small style="color:var(--text-s);font-weight:400">— 글씨가 잘 보이도록. 오른쪽 사진은 항상 밝게 보입니다</small></label>
+              <input type="range" id="dzDim" min="40" max="100" value="92" oninput="dzPreview()" style="width:100%">
             </div>
           </div>
         </div>
@@ -2962,7 +2975,7 @@ async function testUpCfg(){
    글 쓰던 자리에 바로 넣어줍니다. */
 const UP_URL = localStorage.getItem('wc_up_url') || '';
 const UP_KEY = localStorage.getItem('wc_up_key') || '';
-const UP_MAXW = parseInt(localStorage.getItem('wc_up_maxw')) || 1400;  // 가로 최대 픽셀
+let UP_MAXW = parseInt(localStorage.getItem('wc_up_maxw')) || 1400;  // 가로 최대 픽셀
 const UP_QUALITY = parseFloat(localStorage.getItem('wc_up_q')) || 0.8;
 
 function upReady(){ return !!(UP_URL && UP_KEY); }
@@ -3201,7 +3214,10 @@ async function dzImgUpload(inp){
   const st = gi('dzImgSt'); const old = st ? st.innerHTML : '';
   if(st) st.textContent = '⏳ 올리는 중...';
   try{
-    const path = await uploadOne(f, 'images');
+    // 배너는 화면 전체 폭이라 조금 크게(가로 2000px) 줄여 올립니다
+    const keep = UP_MAXW; UP_MAXW = 2000;
+    let path;
+    try{ path = await uploadOne(f, 'images'); } finally { UP_MAXW = keep; }
     gi('dzImg').value = path;
     // 사이트에 반영되기 전에도 미리보기가 보이도록 잠시 내 컴퓨터 사진으로 보여줍니다
     const blob = URL.createObjectURL(f);
@@ -6143,7 +6159,7 @@ function dzPatternCSS(kind){
 }
 
 const DZ_DEFAULT = {theme:'green', c1:'#1b4332',c2:'#2d6a4f',c3:'#40916c',c4:'#74c69d',
-  acc:'#f77f00', pattern:'grid', heroImg:'', heroDim:55};
+  acc:'#f77f00', pattern:'grid', heroImg:'', heroDim:55, heroShade:92, heroPos:70, heroTint:''};
 let dzCur = Object.assign({}, DZ_DEFAULT);
 
 function dzBuildUI(){
@@ -6181,7 +6197,10 @@ function dzFillInputs(){
   v('dzC1',dzCur.c1); v('dzC2',dzCur.c2); v('dzC3',dzCur.c3);
   v('dzC4',dzCur.c4); v('dzAccC',dzCur.acc);
   v('dzImg',dzCur.heroImg||'');
-  const d=gi('dzDim'); if(d) d.value=dzCur.heroDim;
+  const d=gi('dzDim'); if(d) d.value=(dzCur.heroShade==null?92:dzCur.heroShade);
+  v('dzPos', dzCur.heroPos==null?70:dzCur.heroPos);
+  v('dzTint', dzCur.heroTint || dzCur.c1);
+  const ts=gi('dzTintSame'); if(ts) ts.checked = !dzCur.heroTint;
 }
 
 function dzPreview(){
@@ -6190,9 +6209,14 @@ function dzPreview(){
     dzCur.c1=g('dzC1'); dzCur.c2=g('dzC2'); dzCur.c3=g('dzC3');
     dzCur.c4=g('dzC4'); dzCur.acc=g('dzAccC');
     dzCur.heroImg=(g('dzImg')||'').trim();
-    dzCur.heroDim=parseInt(g('dzDim'))||0;
+    dzCur.heroShade=parseInt(g('dzDim')); if(isNaN(dzCur.heroShade)) dzCur.heroShade=92;
+    dzCur.heroPos=parseInt(g('dzPos')); if(isNaN(dzCur.heroPos)) dzCur.heroPos=70;
+    const same=gi('dzTintSame') ? gi('dzTintSame').checked : true;
+    dzCur.heroTint = same ? '' : (g('dzTint')||'');
+    if(same && gi('dzTint')) gi('dzTint').value = dzCur.c1;
   }
-  const dv=gi('dzDimV'); if(dv) dv.textContent=dzCur.heroDim+'%';
+  const dv=gi('dzDimV'); if(dv) dv.textContent=dzCur.heroShade+'%';
+  const pv=gi('dzPosV'); if(pv) pv.textContent=dzCur.heroPos+'%';
 
   // 선택 표시
   document.querySelectorAll('#dzThemes .dz-th').forEach(e=>
@@ -6206,10 +6230,16 @@ function dzPreview(){
     const p = dzPatternCSS(dzCur.pattern);
     const layers=[], sizes=[];
     if(p.img!=='none'){ layers.push(p.img); sizes.push(p.size); }
+    let posList = null;
     if(dzCur.heroImg){
-      layers.push(`linear-gradient(rgba(0,0,0,${dzCur.heroDim/100}), rgba(0,0,0,${dzCur.heroDim/100}))`);
+      layers.length = 0; sizes.length = 0;     // 사진이 있으면 무늬는 감춥니다
+      const hx=(dzCur.heroTint||dzCur.c1||'#1b4332').replace('#','');
+      const rgb=[0,2,4].map(i=>parseInt(hx.substr(i,2),16)||0).join(',');
+      const a=dzCur.heroShade/100;
+      layers.push(`linear-gradient(90deg, rgba(${rgb},${a}) 0%, rgba(${rgb},${a*.92}) 30%, rgba(${rgb},${a*.38}) 55%, rgba(${rgb},0) 75%)`);
       sizes.push('cover');
       layers.push(`url('${dzCur.heroImg}')`); sizes.push('cover');
+      posList = `center, center ${dzCur.heroPos}%`;
     } else {
       layers.push(`radial-gradient(ellipse at 20% 50%, ${dzCur.c3}66 0%, transparent 60%)`); sizes.push('auto');
       layers.push(`radial-gradient(ellipse at 80% 20%, ${dzCur.c4}33 0%, transparent 50%)`); sizes.push('auto');
@@ -6217,7 +6247,7 @@ function dzPreview(){
     bg.style.backgroundColor = dzCur.c1;
     bg.style.backgroundImage = layers.join(',');
     bg.style.backgroundSize  = sizes.join(',');
-    bg.style.backgroundPosition='center';
+    bg.style.backgroundPosition = posList || 'center';
     bg.style.opacity='1';
   }
   const acc=gi('dzAcc'); if(acc) acc.style.color=dzCur.c4;

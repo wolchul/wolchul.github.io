@@ -248,6 +248,30 @@ img{max-width:100%}
 .hero-links .wz-lk .tx small{color:rgba(255,255,255,.62)}
 .hero-links .wz-lk .go{color:rgba(255,255,255,.55)}
 .hero-links .wz-lk:hover .go{color:#fff}
+/* ── 배경 사진이 있을 때: 왼쪽만 색으로 덮고, 사진은 밝게 ── */
+.hero.has-photo{min-height:380px}
+.hero.has-photo .hero-bg{
+  background-image:
+    linear-gradient(90deg,
+      rgba(var(--tint),var(--sh)) 0%,
+      rgba(var(--tint),calc(var(--sh) * .92)) 30%,
+      rgba(var(--tint),calc(var(--sh) * .38)) 55%,
+      rgba(var(--tint),0) 75%),
+    var(--hero-img);
+  background-size:cover,cover;
+  background-position:center,center var(--hpos)}
+.hero.has-photo .hero-grid{display:none}
+.hero.has-photo h1,.hero.has-photo .hero-desc{text-shadow:0 2px 14px rgba(0,0,0,.25)}
+.hero.has-photo .hero-in{grid-template-columns:minmax(0,1fr) auto;align-items:end}
+/* 바로가기 → 동그란 아이콘 한 줄 */
+.hero.has-photo .hero-links{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.hero.has-photo .hero-links-lbl{width:100%;text-align:right;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.55)}
+.hero.has-photo .hero-links .wz-lk{padding:0;border:none;background:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.hero.has-photo .hero-links .wz-lk:hover{background:none;box-shadow:none;transform:translateY(-3px)}
+.hero.has-photo .hero-links .wz-lk .tx,.hero.has-photo .hero-links .wz-lk .go{display:none}
+.hero.has-photo .hero-links .wz-lk .ic{width:48px;height:48px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.9);box-shadow:0 4px 14px rgba(0,0,0,.28)}
+.hero.has-photo .hero-links .wz-lk .ic svg{width:22px;height:22px}
 .hero-links-lbl{grid-column:1 / -1;font-size:.7rem;font-weight:800;letter-spacing:.12em;
   color:rgba(255,255,255,.55);text-transform:uppercase;margin-bottom:2px}
 .hero-btns{display:flex;gap:12px;flex-wrap:wrap}
@@ -854,6 +878,11 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 /* ── 반응형 ── */
 @media(max-width:1024px){
   .hero-in{grid-template-columns:1fr;gap:26px}
+  /* 좁은 화면은 글이 사진 전체를 덮으므로 고르게 덮습니다 */
+  .hero.has-photo .hero-bg{background-image:
+    linear-gradient(rgba(var(--tint),calc(var(--sh) * .78)),rgba(var(--tint),calc(var(--sh) * .78))),var(--hero-img)}
+  .hero.has-photo .hero-in{grid-template-columns:1fr}
+  .hero.has-photo .hero-links,.hero.has-photo .hero-links-lbl{justify-content:flex-start;text-align:left}
   .hero-card{display:grid;grid-template-columns:repeat(3,1fr)}
   .h-stat{flex-direction:column;text-align:center;gap:6px}
   .feat{grid-template-columns:1fr}
@@ -2127,7 +2156,7 @@ function applyLinks(s){
     const key = (l.icon && LINK_ICONS[l.icon]) ? l.icon : null;
     const ico = key ? LINK_ICONS[key]
               : (l.icon && l.icon.length <= 3 ? esc(l.icon) : LINK_ICONS.link);
-    return `<a class="wz-lk ${key ? 'lk-'+key : ''}" href="${esc(l.url)}" target="_blank" rel="noopener">
+    return `<a class="wz-lk ${key ? 'lk-'+key : ''}" href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.label||'바로가기')}" aria-label="${esc(l.label||'바로가기')}">
        <span class="ic">${ico}</span>
        <span class="tx">${esc(l.label||'바로가기')}
          ${l.sub ? `<small>${esc(l.sub)}</small>` : ''}</span>
@@ -2349,13 +2378,23 @@ function applyDesign(d){
     grid.style.backgroundSize  = p.size;
     grid.style.opacity = (p.img === 'none') ? '0' : '.06';
   }
+  const hero = document.querySelector('.hero');
+  if(hero) hero.classList.toggle('has-photo', !!d.heroImg);
   if(hbg){
     if(d.heroImg){
-      const dim = (d.heroDim == null ? 55 : d.heroDim) / 100;
-      hbg.style.backgroundImage =
-        `linear-gradient(rgba(0,0,0,${dim}), rgba(0,0,0,${dim})), url('${d.heroImg}')`;
-      hbg.style.backgroundSize = 'cover, cover';
-      hbg.style.backgroundPosition = 'center, center';
+      // 사진 위에 덮는 색 (지정 안 하면 '가장 진한색'), 진하기, 사진 위치
+      const hex = (d.heroTint || d.c1 || '#1b4332').replace('#','');
+      const h6 = hex.length === 3 ? hex.split('').map(x => x + x).join('') : hex;
+      const rgb = [0,2,4].map(i => parseInt(h6.substr(i,2),16) || 0).join(',');
+      const sh = (d.heroShade == null ? 92 : d.heroShade) / 100;
+      const pos = (d.heroPos == null ? 70 : d.heroPos);
+      hero.style.setProperty('--tint', rgb);
+      hero.style.setProperty('--sh', sh);
+      hero.style.setProperty('--hpos', pos + '%');
+      hero.style.setProperty('--hero-img', `url('${d.heroImg}')`);
+      hbg.style.backgroundImage = '';
+      hbg.style.backgroundSize = '';
+      hbg.style.backgroundPosition = '';
     } else if(d.c3 && d.c4){
       hbg.style.backgroundImage =
         `radial-gradient(ellipse at 20% 50%, ${d.c3}66 0%, transparent 60%),` +
