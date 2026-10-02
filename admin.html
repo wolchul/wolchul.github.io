@@ -1005,6 +1005,7 @@ input,select,textarea{font-family:inherit}
                 <button type="button" class="btn bo bsm" onclick="gi('dzImg').value='';dzPreview()">지우기</button>
                 <input type="file" id="dzImgFile" accept="image/*" style="display:none" onchange="dzImgUpload(this)">
               </div>
+              <p id="dzImgWarn" style="font-size:.72rem;color:#b26a00;font-weight:700;margin-top:6px"></p>
               <p id="dzImgSt" style="font-size:.71rem;color:var(--text-s);margin-top:6px">
                 <strong>⬆ 사진 올리기</strong>로 고르면 바로 올라가고 주소가 자동으로 채워집니다. 가로로 긴 사진이 잘 어울립니다.
                 올린 뒤 아래 <strong>저장</strong>을 눌러야 웹진에 반영됩니다.
@@ -3206,6 +3207,29 @@ async function phLoad(){
   }
 }
 
+/* 방금 올린 배경 사진 (사이트 반영 전 미리보기용) */
+let dzBlob = null, dzProbeT = null;
+/* 미리보기에 쓸 사진 주소 — 방금 올린 사진이면 내 컴퓨터 사진으로 */
+function dzImgSrc(){
+  if(!dzCur.heroImg) return '';
+  if(dzBlob && dzBlob.path === dzCur.heroImg) return dzBlob.url;
+  return dzCur.heroImg;
+}
+/* 사진 주소가 아직 열리지 않으면 안내하고, 열릴 때까지 다시 확인합니다 */
+function dzProbe(){
+  clearTimeout(dzProbeT);
+  const src = dzImgSrc(), st = gi('dzImgWarn');
+  if(!st) return;
+  if(!src || src.startsWith('blob:')){ st.textContent = ''; return; }
+  const im = new Image();
+  im.onload = () => { st.textContent = ''; dzPreview(true); };
+  im.onerror = () => {
+    st.textContent = '⏳ 이 사진은 아직 사이트에 반영되지 않았습니다. 올린 직후라면 1~2분 뒤 자동으로 보입니다. (주소가 틀렸다면 사진을 다시 올려 주세요)';
+    dzProbeT = setTimeout(dzProbe, 10000);
+  };
+  im.src = src + (src.includes('?') ? '&' : '?') + 't=' + Date.now();
+}
+
 /* 메인 화면 배경 사진 올리기 */
 async function dzImgUpload(inp){
   const f = inp.files && inp.files[0]; inp.value = '';
@@ -3220,8 +3244,9 @@ async function dzImgUpload(inp){
     try{ path = await uploadOne(f, 'images'); } finally { UP_MAXW = keep; }
     gi('dzImg').value = path;
     // 사이트에 반영되기 전에도 미리보기가 보이도록 잠시 내 컴퓨터 사진으로 보여줍니다
-    const blob = URL.createObjectURL(f);
-    gi('dzImg').value = blob; dzPreview(); gi('dzImg').value = path; dzCur.heroImg = path;
+    // 사이트에 반영되기 전(1분쯤)에도 미리보기가 보이도록 내 컴퓨터 사진을 기억해 둡니다
+    dzBlob = { path, url: URL.createObjectURL(f) };
+    gi('dzImg').value = path; dzPreview();
     if(st) st.innerHTML = '✅ 올렸습니다. 아래 <strong>저장</strong>을 누르면 웹진 메인에 반영됩니다. (사이트 반영까지 1분쯤 걸릴 수 있습니다)';
   }catch(e){
     if(st) st.innerHTML = old;
@@ -6203,7 +6228,7 @@ function dzFillInputs(){
   const ts=gi('dzTintSame'); if(ts) ts.checked = !dzCur.heroTint;
 }
 
-function dzPreview(){
+function dzPreview(skipProbe){
   const g=id=>gi(id)?gi(id).value:null;
   if(g('dzC1')){
     dzCur.c1=g('dzC1'); dzCur.c2=g('dzC2'); dzCur.c3=g('dzC3');
@@ -6217,6 +6242,7 @@ function dzPreview(){
   }
   const dv=gi('dzDimV'); if(dv) dv.textContent=dzCur.heroShade+'%';
   const pv=gi('dzPosV'); if(pv) pv.textContent=dzCur.heroPos+'%';
+  if(!skipProbe && dzCur.heroImg !== dzPreview._last){ dzPreview._last = dzCur.heroImg; dzProbe(); }
 
   // 선택 표시
   document.querySelectorAll('#dzThemes .dz-th').forEach(e=>
@@ -6238,7 +6264,7 @@ function dzPreview(){
       const a=dzCur.heroShade/100;
       layers.push(`linear-gradient(90deg, rgba(${rgb},${a}) 0%, rgba(${rgb},${a*.92}) 30%, rgba(${rgb},${a*.38}) 55%, rgba(${rgb},0) 75%)`);
       sizes.push('cover');
-      layers.push(`url('${dzCur.heroImg}')`); sizes.push('cover');
+      layers.push(`url('${dzImgSrc()}')`); sizes.push('cover');
       posList = `center, center ${dzCur.heroPos}%`;
     } else {
       layers.push(`radial-gradient(ellipse at 20% 50%, ${dzCur.c3}66 0%, transparent 60%)`); sizes.push('auto');
