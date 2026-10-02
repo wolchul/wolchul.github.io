@@ -185,9 +185,12 @@ img{max-width:100%}
   border-bottom:2px solid transparent;transition:all .18s}
 .gnb a:hover,.gnb a.on{color:var(--c1);border-bottom-color:var(--c1)}
 .gnb-act{display:flex;align-items:center;gap:8px;margin-left:12px}
-.btn-sp{background:var(--acc);color:#fff;border:none;border-radius:22px;
-  padding:8px 18px;font-size:.8rem;font-weight:700;transition:opacity .18s}
-.btn-sp:hover{opacity:.85}
+.btn-sp{display:inline-flex;align-items:center;gap:7px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--acc),#ff9f1c);color:#fff;border-radius:26px;
+  padding:10px 22px 10px 16px;font-size:.88rem;font-weight:900;
+  box-shadow:0 4px 14px rgba(247,127,0,.32);transition:transform .18s,box-shadow .18s}
+.btn-sp svg{width:16px;height:16px;fill:#fff}
+.btn-sp:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(247,127,0,.42)}
 .btn-a11y{background:none;border:1px solid var(--line);color:var(--ink-s);
   border-radius:8px;padding:7px 10px;font-size:.75rem;display:flex;align-items:center;gap:4px}
 .btn-a11y:hover{border-color:var(--c1);color:var(--c1)}
@@ -203,7 +206,7 @@ img{max-width:100%}
 .mob-x{background:none;border:none;padding:18px 24px;font-size:1.2rem;color:var(--ink-s);align-self:flex-end}
 
 /* ── 히어로 ── */
-.hero{position:relative;overflow:hidden;background:var(--c1);min-height:520px;
+.hero{position:relative;overflow:hidden;background:var(--c1);min-height:340px;
   display:flex;align-items:center}
 .hero-bg{position:absolute;inset:0;background:
   radial-gradient(ellipse at 20% 50%, rgba(64,145,108,.4) 0%, transparent 60%),
@@ -212,18 +215,41 @@ img{max-width:100%}
   background-image:linear-gradient(rgba(255,255,255,.4) 1px,transparent 1px),
   linear-gradient(90deg,rgba(255,255,255,.4) 1px,transparent 1px);
   background-size:40px 40px}
-.hero-in{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:64px 32px;
-  display:flex;flex-direction:column;align-items:flex-start;gap:0}
+.hero-in{position:relative;z-index:1;width:100%;max-width:1280px;margin:0 auto;padding:48px 32px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);align-items:center;gap:40px}
 .hero-left{}
 .hero-tag{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);
   color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.2);
   border-radius:20px;padding:5px 14px;font-size:.72rem;font-weight:700;
   letter-spacing:.08em;margin-bottom:20px}
 .hero-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--c4)}
-.hero h1{font-size:3.4rem;font-weight:900;color:#fff;line-height:1.12;
-  letter-spacing:-.04em;margin-bottom:16px}
+.hero h1{font-size:2.5rem;font-weight:900;color:#fff;line-height:1.18;
+  letter-spacing:-.04em;margin-bottom:12px}
 .hero h1 .pt{color:var(--c4)}
-.hero-desc{color:rgba(255,255,255,.75);font-size:.92rem;line-height:1.8;margin-bottom:28px;max-width:460px}
+.hero-desc{color:rgba(255,255,255,.78);font-size:.9rem;line-height:1.8;margin-bottom:24px;max-width:480px}
+/* 후원 신청 — 크고 눈에 띄게 */
+.btn-hero-sp{display:inline-flex;align-items:center;gap:10px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--acc),#ff9f1c);color:#fff;
+  border-radius:40px;padding:15px 30px 15px 24px;font-size:1.02rem;font-weight:900;letter-spacing:-.01em;
+  box-shadow:0 8px 22px rgba(247,127,0,.38),inset 0 1px 0 rgba(255,255,255,.25);
+  transition:transform .18s,box-shadow .18s}
+.btn-hero-sp .hrt{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);
+  display:flex;align-items:center;justify-content:center}
+.btn-hero-sp .hrt svg{width:17px;height:17px;fill:#fff}
+.btn-hero-sp .arr{transition:transform .18s}
+.btn-hero-sp:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(247,127,0,.45)}
+.btn-hero-sp:hover .arr{transform:translateX(4px)}
+/* 히어로 안의 바로가기 링크 (초록 배경에 녹아들게) */
+.hero-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.hero-links .wz-lk{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+  color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.hero-links .wz-lk:hover{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.35);
+  transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.hero-links .wz-lk .tx small{color:rgba(255,255,255,.62)}
+.hero-links .wz-lk .go{color:rgba(255,255,255,.55)}
+.hero-links .wz-lk:hover .go{color:#fff}
+.hero-links-lbl{grid-column:1 / -1;font-size:.7rem;font-weight:800;letter-spacing:.12em;
+  color:rgba(255,255,255,.55);text-transform:uppercase;margin-bottom:2px}
 .hero-btns{display:flex;gap:12px;flex-wrap:wrap}
 .btn-hero-p{background:#fff;color:var(--c1);border:none;border-radius:8px;
   padding:12px 24px;font-size:.88rem;font-weight:800;transition:all .18s}
@@ -440,7 +466,14 @@ img{max-width:100%}
 /* ── 웹진 한 페이지 보기 ── */
 /* 기사 영역을 넓게 — 좌우 여백을 줄입니다 */
 #articles.inner{max-width:1560px;padding:0 20px}
-.wz{display:grid;grid-template-columns:212px minmax(0,1fr);gap:22px;align-items:start}
+.wz{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;align-items:start}
+.wz.has-side{grid-template-columns:212px minmax(0,1fr)}
+.wz:not(.has-side) > .wz-side{display:none}
+.wz-hd-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.wz-issue{margin-left:auto;display:flex;align-items:center;gap:8px;
+  font-size:calc(.78rem*var(--fs));font-weight:800;color:var(--ink-s)}
+.wz-issue .wz-sel{width:auto;min-width:170px;margin:0}
+.wz-hd-d:empty{display:none}
 .wz-side{position:sticky;top:150px;display:flex;flex-direction:column;gap:12px}
 .wz-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r-l);
   padding:16px;box-shadow:0 1px 8px rgba(0,0,0,.04)}
@@ -474,7 +507,7 @@ img{max-width:100%}
 .wz-imgcap{font-size:calc(.72rem*var(--fs));color:var(--ink-s);padding:9px 12px;text-align:center}
 
 .wz-hd{margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid var(--c-pale)}
-.wz-hd-t{font-size:calc(1.5rem*var(--fs));font-weight:900;color:var(--c1);margin:4px 0 5px}
+.wz-hd-t{font-size:calc(1.6rem*var(--fs));font-weight:900;color:var(--c1);margin:4px 0}
 .wz-hd-d{font-size:calc(.83rem*var(--fs));color:var(--ink-s)}
 
 /* 글자를 키우면 표도 함께 넓어지도록 — 좁은 칸에 큰 글자가 갇히는 것 방지 */
@@ -507,55 +540,28 @@ img{max-width:100%}
 .wz-fz-b:hover{border-color:var(--c1);color:var(--c1)}
 .wz-fz-b.on{background:var(--c1);border-color:var(--c1);color:#fff}
 
-/* 인쇄 */
+/* 인쇄 — 화면에 보이는 배치 그대로, 종이 폭에 맞춰 줄여서 찍습니다 */
 @media print{
-  #hd,.hero,.filter-bar,.wz-side,.wz-tools,.wz-tts,.donor,footer,
-  .a11y-panel,.mob-ov,.wz-zoom,.btn-a11y,#toTop,#wzToast{display:none !important}
-  html,body{background:#fff;margin:0;padding:0}
-
-  /* 글자 크기는 인쇄용 기본값으로 (크게 설정이 켜져 있어도) */
+  @page{size:A4 landscape;margin:10mm}
+  html,body{background:#fff !important;margin:0;padding:0;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
   html{--fs:1 !important}
-
-  .wz{display:block}
-  #articles.inner{max-width:100%;padding:0;margin:0}
-  /* 첫 장이 비지 않도록 위쪽 여백 제거 */
-  main#main,#articles{margin-top:0 !important;padding-top:0 !important}
-  .wz-hd{margin-bottom:10px;padding-bottom:8px}
-  .wz-main{margin:0}
-
-  #wzList{display:block}
-  .wz-art{break-inside:auto;page-break-inside:auto;box-shadow:none;
-    border:none;border-bottom:1px solid #ddd;margin:0 0 10px;padding:8px 0 10px}
-  .wz-art.span-half{grid-column:1 / -1}
-
-  /* ── 표: 인쇄 폭에 맞춰 다시 계산 ── */
-  .wz-body .wg{display:grid !important;gap:0 !important;
-    width:100%;margin:8px 0 !important;
-    break-inside:auto;page-break-inside:auto}
-  .wz-body .wg .wc{padding:6px 8px !important;min-width:0;
-    break-inside:avoid;page-break-inside:avoid;
-    display:block !important}
-  /* 사진|글 이 반복되는 표만 2단으로 접습니다 (글이 세로로 늘어지는 것 방지).
-     사진이 여러 장 이어지는 표는 화면 그대로 인쇄합니다. */
-  .wz-body .wg.pr-fold{grid-template-columns:30% 70% !important}
-  .wz-body .wg.pr-fold .wc[data-span]{grid-column:1 / -1 !important}
-
-  .wz-body .wg img{width:100% !important;height:auto !important;max-width:100% !important}
-  .wz-body{font-size:9.5pt;line-height:1.5}
-  .wz-body p{margin:0 0 4px}
-  .wz-art h3{font-size:13pt;margin-bottom:5px}
-  .wz-sum{font-size:9.5pt;padding:7px 10px;margin-bottom:8px}
-  .wz-hd-t{font-size:16pt}
-
-  /* 낱글자로 쪼개지지 않게 */
-  .wz-body,.wz-body *{word-break:keep-all !important;overflow-wrap:break-word !important;
-    hyphens:none}
-
+  .topbar,#hd,.prog-bar,.hero,.filter-bar,.wz-side,.wz-tools,.wz-issue,.wz-tts,.donor,footer,
+  .a11y,.a11y-panel,.mob-ov,.wz-zoom,.btn-a11y,#toTop,#wzToast,.offline,.empty{display:none !important}
+  main#main,#articles,#articles.inner{max-width:none !important;margin:0 !important;padding:0 !important}
+  .section{padding:0 !important}
+  .wz{display:block !important}
+  /* 화면에서의 폭 그대로 그린 뒤, 종이에 맞게 비율만 줄입니다 */
+  .wz-main{width:var(--pw,1100px) !important;zoom:var(--pz,.95)}
+  .wz-hd{margin-bottom:12px}
+  .wz-art{box-shadow:none !important;break-inside:auto;page-break-inside:auto}
+  .wz-body .wg{break-inside:auto;page-break-inside:auto}
+  .wz-body .wg .wc{break-inside:avoid;page-break-inside:avoid}
+  .wz-body img,.wz-photos img{break-inside:avoid}
   .imgtxt-body{display:block !important}
   .imgtxt-tog,.tts-now::after{display:none !important}
   .tts-now{background:transparent !important;outline:none !important}
   a[href]:after{content:''}
-  @page{size:A4;margin:12mm 10mm}
 }
 
 /* 기사 목록 — 2단 배치 지원 */
@@ -580,7 +586,12 @@ img{max-width:100%}
   scroll-margin-top:170px}
 .wz-art-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:11px}
 .wz-cat{border-radius:20px;padding:4px 13px;font-size:calc(.72rem*var(--fs));font-weight:800}
-.wz-meta{font-size:calc(.74rem*var(--fs));color:var(--ink-s);display:flex;gap:12px;flex-wrap:wrap}
+.wz-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wz-date{font-size:calc(1rem*var(--fs));font-weight:800;color:var(--c1);letter-spacing:.01em;
+  display:inline-flex;align-items:center;gap:7px}
+.wz-date::before{content:'';width:4px;height:17px;border-radius:2px;background:var(--c3)}
+.wz-aut{font-size:calc(.86rem*var(--fs));font-weight:700;color:var(--ink-s);
+  padding-left:10px;border-left:1px solid var(--line)}
 .wz-art h3{font-size:calc(1.24rem*var(--fs));font-weight:900;color:var(--ink);
   line-height:1.45;margin-bottom:12px}
 .wz-sum{font-size:calc(.88rem*var(--fs));color:var(--ink-m);line-height:1.8;
@@ -837,7 +848,7 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 
 /* ── 반응형 ── */
 @media(max-width:1024px){
-  .hero-in{grid-template-columns:1fr;gap:32px}
+  .hero-in{grid-template-columns:1fr;gap:26px}
   .hero-card{display:grid;grid-template-columns:repeat(3,1fr)}
   .h-stat{flex-direction:column;text-align:center;gap:6px}
   .feat{grid-template-columns:1fr}
@@ -853,8 +864,10 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
   .gnb-act .btn-sp{display:none}
   .btn-mob{display:flex}
   .hero{min-height:auto}
-  .hero-in{padding:48px 20px}
-  .hero h1{font-size:2.4rem}
+  .hero-in{padding:36px 20px}
+  .hero h1{font-size:1.9rem}
+  .wz-issue{margin-left:0;width:100%}
+  .wz-issue .wz-sel{flex:1}
   .filter-in{padding:0 20px}
   .inner{padding:0 20px}
   .section{padding:48px 0}
@@ -863,7 +876,8 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
 }
 @media(max-width:560px){
   .grid{grid-template-columns:1fr}
-  .hero h1{font-size:2rem}
+  .hero h1{font-size:1.65rem}
+  .hero-links{grid-template-columns:1fr}
   .donor-in{padding:0 20px}
   .hero-card{grid-template-columns:1fr}
   .mov{padding:10px}
@@ -931,7 +945,7 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
       <a href="#donor">후원 안내</a>
     </nav>
     <div class="gnb-act">
-      <button class="btn-sp" onclick="location.href='sponsor.html'">💚 후원 신청</button>
+      <button class="btn-sp" onclick="location.href='sponsor.html'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.8 8.4 2.9 4.5 6.7 4.5c2.1 0 3.6 1.1 4.3 2.4.7-1.3 2.2-2.4 4.3-2.4 3.8 0 5.9 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>후원 신청</button>
       <button class="btn-a11y" onclick="toggleA11y()">⚙ 접근성</button>
     </div>
     <button class="btn-mob" onclick="openMob()">
@@ -964,9 +978,13 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
       <h1 id="heroH1">장애인과 함께<br>걷는 <span class="pt" id="heroAccent">따뜻한 길</span></h1>
       <p class="hero-desc" id="heroDesc">사회복지법인 전남밀알복지재단 영암군장애인종합복지관의<br>소식과 이야기를 담은 웹진입니다.</p>
       <div class="hero-btns">
-        <button class="btn-hero-p" onclick="document.getElementById('articles').scrollIntoView({behavior:'smooth'})">기사 보기</button>
-        <button class="btn-hero-s" onclick="location.href='sponsor.html'">후원 신청 →</button>
+        <button class="btn-hero-sp" onclick="location.href='sponsor.html'">
+          <span class="hrt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.8 8.4 2.9 4.5 6.7 4.5c2.1 0 3.6 1.1 4.3 2.4.7-1.3 2.2-2.4 4.3-2.4 3.8 0 5.9 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg></span>후원 신청하기<span class="arr">→</span></button>
       </div>
+    </div>
+    <div class="hero-links" id="wzLinkCard">
+      <div class="hero-links-lbl">바로가기</div>
+      <div id="wzLinks" style="display:contents"></div>
     </div>
 
   </div>
@@ -991,17 +1009,6 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
     <div class="wz" id="wzArea" style="display:none">
 
       <aside class="wz-side">
-        <div class="wz-card">
-          <div class="wz-lbl">📅 호수 선택</div>
-          <select class="wz-sel" id="wzMonth" onchange="setMonth(this.value)" aria-label="발행 월 선택"></select>
-          <div class="wz-cnt" id="wzCnt"></div>
-        </div>
-
-        <div class="wz-card" id="wzLinkCard">
-          <div class="wz-lbl">🔗 바로가기</div>
-          <div class="wz-links" id="wzLinks"></div>
-        </div>
-
         <div class="wz-card wz-imgcard" id="wzImgCard" style="display:none">
           <img id="wzImg" src="" alt="" loading="lazy">
           <div class="wz-imgcap" id="wzImgCap"></div>
@@ -1011,7 +1018,13 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
       <div class="wz-main">
         <div class="wz-hd">
           <div class="sec-eyebrow">Webzine</div>
-          <h2 class="wz-hd-t" id="wzTitle">전체 기사</h2>
+          <div class="wz-hd-row">
+            <h2 class="wz-hd-t" id="wzTitle">전체 기사</h2>
+            <label class="wz-issue">
+              <span>📅 다른 호 보기</span>
+              <select class="wz-sel" id="wzMonth" onchange="setMonth(this.value)" aria-label="발행 월 선택"></select>
+            </label>
+          </div>
           <p class="wz-hd-d" id="wzSub"></p>
           <div class="wz-tools">
             <div class="wz-fz">
@@ -1183,7 +1196,7 @@ footer{background:#0d2818;color:rgba(255,255,255,.65);padding:52px 0 28px}
    관리자에서 첫 기사를 등록하면 이 글은 화면에서 사라집니다. */
 const SAMPLE=[
   {id:'sample-guide', cat:'소식', emoji:'📝', featured:true,
-   date:new Date().toISOString().slice(0,10), author:'기획홍보팀',
+   date:new Date().toISOString().slice(0,10), author:'기획운영팀',
    title:'웹진 준비 중입니다',
    summary:'첫 소식지 기사를 준비하고 있습니다. 곧 영암군장애인종합복지관의 다양한 소식으로 찾아뵙겠습니다.',
    content:`<p>안녕하세요. 영암군장애인종합복지관 웹진 <strong>월출어람</strong>입니다.</p>
@@ -1300,11 +1313,11 @@ function buildMonths(){
     // 처음 들어오면 가장 최신 호를 보여줍니다
     if(curMonth === 'all' || !keys.includes(curMonth)) curMonth = keys[0] || 'all';
     sel.innerHTML = keys.map(k =>
-      `<option value="${k}">${monthLabel(k)} (${cnt[k]}건)</option>`).join('');
+      `<option value="${k}">${monthLabel(k)}</option>`).join('');
   }
   sel.value = curMonth;
   const c = document.getElementById('wzCnt');
-  if(c) c.textContent = keys.length ? (keys.length + '개 호 발행') : '';
+  if(c) c.textContent = '';
 }
 
 function setMonth(m){
@@ -1349,7 +1362,7 @@ function render() {
     const parts = [];
     if(curTag !== 'all') parts.push('분류: ' + curTag);
     if(q) parts.push('검색어: ' + q);
-    sub.textContent = (parts.length ? parts.join(' · ') + ' — ' : '') + '총 ' + list.length + '건';
+    sub.textContent = parts.join(' · ');
   }
 
   // 기사 본문
@@ -1425,8 +1438,7 @@ function render() {
     const textBlock = `
       <div class="wz-text">
         <div class="wz-art-top">
-          <span class="wz-cat" style="background:${cbg};color:${cc}">${dispCat(a.cat)}</span>
-          <span class="wz-meta"><span>📅 ${fmt(a.date)}</span>${a.author?`<span>✍️ ${a.author}</span>`:''}</span>
+          <span class="wz-meta"><span class="wz-date">${fmt(a.date)}</span>${a.author?`<span class="wz-aut">${a.author}</span>`:''}</span>
         </div>
         <h3>${a.title||''}</h3>
         ${a.summary ? `<div class="wz-sum">${a.summary}</div>` : ''}
@@ -1514,7 +1526,7 @@ let carImgs = [], carIdx = 0, carTitle = '';
 
 function openModal(id) {
   const a = ARTS.find(x => x.id == id || x.id === id); if(!a) return;
-  document.getElementById('mCat').textContent = dispCat(a.cat);
+  document.getElementById('mCat').textContent = '';
   document.getElementById('mDate').textContent = '발행일: ' + fmt(a.date);
   document.getElementById('mTitle').textContent = a.title;
   document.getElementById('mAuthor').textContent = a.author ? ('작성: ' + a.author) : '';
@@ -2125,11 +2137,13 @@ function applySideImage(s){
   const cap  = document.getElementById('wzImgCap');
   if(!card || !img) return;
   const src = s && s.sideImage;
-  if(!src){ card.style.display='none'; return; }
+  const area = document.getElementById('wzArea');
+  if(!src){ card.style.display='none'; if(area) area.classList.remove('has-side'); return; }
+  if(area) area.classList.add('has-side');
   img.src = src;
   img.alt = (s.sideImageCap || '안내 이미지');
   if(cap) cap.textContent = s.sideImageCap || '';
-  img.onerror = () => { card.style.display='none'; };
+  img.onerror = () => { card.style.display='none'; if(area) area.classList.remove('has-side'); };
   card.style.display='';
 }
 
@@ -2240,7 +2254,7 @@ function markFoldTables(){
 function printIssue(){
   // 읽어주기가 돌고 있으면 멈춥니다 (인쇄 중 표시가 찍히지 않게)
   if(typeof stopTTS === 'function') stopTTS();
-  const folded = markFoldTables();
+  const folded = [];
 
   const opened = [];
   document.querySelectorAll('.imgtxt-body').forEach(b => {
@@ -2265,10 +2279,22 @@ function printIssue(){
   window.addEventListener('afterprint', restore, { once: true });
 
   setTimeout(() => {
+    setPrintScale();
     window.print();
     setTimeout(restore, 800);     // afterprint 를 지원하지 않는 브라우저 대비
   }, 120);
 }
+
+/* 화면에서 기사 영역의 폭을 재서, 인쇄할 때 같은 폭으로 그린 뒤 종이에 맞춥니다 */
+function setPrintScale(){
+  const m = document.querySelector('.wz-main'); if(!m) return;
+  const w = Math.round(m.getBoundingClientRect().width) || 1100;
+  const paper = (297 - 20) * 96 / 25.4;          // A4 가로 - 여백 (px)
+  const r = document.documentElement.style;
+  r.setProperty('--pw', w + 'px');
+  r.setProperty('--pz', Math.min(1, paper / w).toFixed(3));
+}
+window.addEventListener('beforeprint', setPrintScale);   // Ctrl+P 로 인쇄할 때도
 
 /* 주소에 ?issue=2026-09 가 있으면 그 호를 바로 보여줍니다 */
 function applyIssueParam(){

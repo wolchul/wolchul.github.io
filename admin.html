@@ -604,7 +604,7 @@ input,select,textarea{font-family:inherit}
           </div>
           <div class="fr">
             <div class="fg2"><label>작성자</label>
-              <input type="text" id="eaut" placeholder="예: 기획홍보팀"></div>
+              <input type="text" id="eaut" placeholder="예: 기획운영팀"></div>
             <div class="fg2"><label>특집 여부</label>
               <select id="efea">
                 <option value="false">일반 기사</option>
@@ -999,9 +999,15 @@ input,select,textarea{font-family:inherit}
             </div>
             <div class="sf" style="margin-top:14px">
               <label>배경 사진 <small style="color:var(--text-s);font-weight:400">— 비워두면 색상만 사용</small></label>
-              <input id="dzImg" placeholder="images/hero.jpg 또는 https://... 주소" oninput="dzPreview()">
-              <p style="font-size:.71rem;color:var(--text-s);margin-top:6px">
-                GitHub의 <strong>images</strong> 폴더에 사진을 올리고 <strong>images/파일명.jpg</strong> 처럼 적으면 됩니다.
+              <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+                <input id="dzImg" placeholder="images/hero.jpg 또는 https://... 주소" oninput="dzPreview()" style="flex:1;min-width:200px">
+                <button type="button" class="btn bp bsm" onclick="gi('dzImgFile').click()">⬆ 사진 올리기</button>
+                <button type="button" class="btn bo bsm" onclick="gi('dzImg').value='';dzPreview()">지우기</button>
+                <input type="file" id="dzImgFile" accept="image/*" style="display:none" onchange="dzImgUpload(this)">
+              </div>
+              <p id="dzImgSt" style="font-size:.71rem;color:var(--text-s);margin-top:6px">
+                <strong>⬆ 사진 올리기</strong>로 고르면 바로 올라가고 주소가 자동으로 채워집니다. 가로로 긴 사진이 잘 어울립니다.
+                올린 뒤 아래 <strong>저장</strong>을 눌러야 웹진에 반영됩니다.
               </p>
             </div>
             <div class="sf" style="margin-top:12px">
@@ -2261,7 +2267,7 @@ function newArt(){
   gi('etl').textContent='✏️ 새 기사 작성';
   gi('eid').value=''; gi('etti').value=''; gi('ecat').value='함께한 이야기';
   gi('eemo').value='📝'; gi('edat').value=new Date().toISOString().split('T')[0];
-  gi('eaut').value='기획홍보팀'; gi('efea').value='false';
+  gi('eaut').value='기획운영팀'; gi('efea').value='false';
   gi('elay').value='default'; gi('espan').value='full'; layPrev();
   gi('eiss').value=''; issPrev();
   gi('esum').value=''; gi('cedit').innerHTML=''; gi('csrc').value='';
@@ -2306,7 +2312,7 @@ function copyArt(id){
   gi('ecat').value = ec;
   gi('eemo').value = a.emoji || '📄';
   gi('edat').value = today;                   // 날짜는 오늘로
-  gi('eaut').value = a.author || '기획홍보팀';
+  gi('eaut').value = a.author || '기획운영팀';
   gi('efea').value = 'false';                 // 특집은 해제
   gi('esum').value = a.summary || '';
   gi('elay').value = a.layout || 'default';
@@ -2343,7 +2349,7 @@ function editArt(id){
   let ec = dispCat(a.cat||'');
   if(!['발자취','함께한 이야기','공모사업','후원봉사','소식'].includes(ec)) ec='소식';
   gi('ecat').value=ec; gi('eemo').value=a.emoji||'📄';
-  gi('edat').value=a.date||''; gi('eaut').value=a.author||'';
+  gi('edat').value=a.date||''; gi('eaut').value=(a.author||'기획운영팀').replace('기획홍보팀','기획운영팀');
   gi('efea').value=a.featured?'true':'false'; gi('esum').value=a.summary||'';
   gi('elay').value=a.layout||'default'; gi('espan').value=a.span||'full'; layPrev();
   gi('eiss').value=a.issue||''; issPrev();
@@ -3184,6 +3190,26 @@ async function phLoad(){
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:22px;font-size:.78rem;color:var(--red)">'
       + '❌ 목록을 불러오지 못했습니다: ' + e.message
       + '<br><span style="color:var(--text-s);font-size:.72rem">잠시 후 다시 시도해 주세요.</span></div>';
+  }
+}
+
+/* 메인 화면 배경 사진 올리기 */
+async function dzImgUpload(inp){
+  const f = inp.files && inp.files[0]; inp.value = '';
+  if(!f) return;
+  if(!upReady()){ toast('업로드 서버가 설정되지 않았습니다. 사이트 설정 → 사진 자동 업로드를 확인해 주세요.','err'); return; }
+  const st = gi('dzImgSt'); const old = st ? st.innerHTML : '';
+  if(st) st.textContent = '⏳ 올리는 중...';
+  try{
+    const path = await uploadOne(f, 'images');
+    gi('dzImg').value = path;
+    // 사이트에 반영되기 전에도 미리보기가 보이도록 잠시 내 컴퓨터 사진으로 보여줍니다
+    const blob = URL.createObjectURL(f);
+    gi('dzImg').value = blob; dzPreview(); gi('dzImg').value = path; dzCur.heroImg = path;
+    if(st) st.innerHTML = '✅ 올렸습니다. 아래 <strong>저장</strong>을 누르면 웹진 메인에 반영됩니다. (사이트 반영까지 1분쯤 걸릴 수 있습니다)';
+  }catch(e){
+    if(st) st.innerHTML = old;
+    toast('❌ 올리지 못했습니다: ' + e.message, 'err');
   }
 }
 
