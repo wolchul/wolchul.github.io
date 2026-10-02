@@ -542,7 +542,9 @@ img{max-width:100%}
 
 /* 인쇄 — 화면에 보이는 배치 그대로, 종이 폭에 맞춰 줄여서 찍습니다 */
 @media print{
-  @page{size:A4 landscape;margin:10mm}
+  /* 종이 위·아래 여백을 0 으로 두면 브라우저가 주소·날짜·제목을 찍을 자리가 없어 사라집니다.
+     대신 위·아래 여백은 내용 쪽에서 장마다 넣어 줍니다. */
+  @page{size:A4 landscape;margin:0 10mm}
   html,body{background:#fff !important;margin:0;padding:0;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
   html{--fs:1 !important}
@@ -553,7 +555,10 @@ img{max-width:100%}
   .wz{display:block !important}
   /* 화면에서의 폭 그대로 그린 뒤, 종이에 맞게 비율만 줄입니다 */
   .wz-main{width:var(--pw,1100px) !important;zoom:var(--pz,.95)}
-  .wz-hd{margin-bottom:12px}
+  /* 장이 넘어가도 위·아래에 여백이 생기도록 (여러 장에 걸친 상자마다 여백을 복제) */
+  #wzList{padding:10mm 0 !important;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .wz-art{-webkit-box-decoration-break:clone;box-decoration-break:clone}
+  .wz-hd{margin-bottom:12px;padding-top:10mm}
   .wz-art{box-shadow:none !important;break-inside:auto;page-break-inside:auto}
   .wz-body .wg{break-inside:auto;page-break-inside:auto}
   .wz-body .wg .wc{break-inside:avoid;page-break-inside:avoid}
@@ -2286,10 +2291,17 @@ function printIssue(){
 }
 
 /* 화면에서 기사 영역의 폭을 재서, 인쇄할 때 같은 폭으로 그린 뒤 종이에 맞춥니다 */
+let _oldTitle = null;
+window.addEventListener('beforeprint', () => {
+  const t = document.getElementById('wzTitle');
+  _oldTitle = document.title;
+  document.title = '월출어람' + (t && t.textContent ? ' ' + t.textContent.trim() : '');
+});
+window.addEventListener('afterprint', () => { if(_oldTitle !== null){ document.title = _oldTitle; _oldTitle = null; } });
 function setPrintScale(){
   const m = document.querySelector('.wz-main'); if(!m) return;
   const w = Math.round(m.getBoundingClientRect().width) || 1100;
-  const paper = (297 - 20) * 96 / 25.4;          // A4 가로 - 여백 (px)
+  const paper = (297 - 20) * 96 / 25.4;          // A4 가로 - 좌우 여백 (px)
   const r = document.documentElement.style;
   r.setProperty('--pw', w + 'px');
   r.setProperty('--pz', Math.min(1, paper / w).toFixed(3));
