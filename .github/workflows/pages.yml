@@ -1,0 +1,35 @@
+# 월출어람 웹진 — 사이트 게시
+# 사진을 올릴 때마다 저장소에 기록이 하나씩 생기는데,
+# GitHub 기본 게시 방식은 한 시간에 10번까지만 사이트를 새로 만듭니다.
+# 이 방식(직접 만든 GitHub Actions)은 그 제한을 받지 않습니다.
+name: 사이트 게시
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # Actions 화면에서 직접 실행도 가능
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 사진을 여러 장 연달아 올리면 마지막 것만 게시합니다 (중간 것은 건너뜀)
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
